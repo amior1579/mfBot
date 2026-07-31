@@ -1,0 +1,23 @@
+{
+  "accounts": [
+    {
+      "name": "",
+      "username": "",
+      "password": ""
+    }
+  ],
+  "trades": [
+    {
+      "symbol": "تکنو",
+      "order_type": "فروش",
+      "target_time": "10:55:00",
+      "account_id": 0,
+      "invest_amount": null,
+      "quantity": 25000,
+      "amount": 25000,
+      "type": "فروش"
+    }
+  ],
+  "precision_ms": 1,
+  "click_offset_ms": 45
+}

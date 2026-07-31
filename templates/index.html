@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ربات معاملاتی ایزی‌تریدر</title>
+    <style>
+        /* ===== Reset & Base ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #0b1120 0%, #1a2332 100%);
+            min-height: 100vh;
+            color: #f1f5f9;
+            padding: 1.5rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ===== Cards ===== */
+        .card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(71, 85, 105, 0.4);
+            border-radius: 1.5rem;
+            padding: 1.25rem;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.7);
+            transition: border-color 0.2s;
+        }
+        .card:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        /* ===== Grid ===== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .flex-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .logo-icon {
+            background: rgba(59, 130, 246, 0.3);
+            padding: 0.75rem;
+            border-radius: 9999px;
+            font-size: 2rem;
+            color: #60a5fa;
+        }
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .logo p {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+        .dot.green {
+            background: #22c55e;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* ===== Buttons ===== */
+        .btn {
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.75rem;
+            border: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+        }
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px -6px #3b82f6;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+        .btn-success:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px -6px #22c55e;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        .btn-danger:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px -6px #ef4444;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+        }
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* ===== Inputs ===== */
+        input, select {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+            border: 1px solid #334155 !important;
+            border-radius: 0.75rem !important;
+            padding: 0.5rem 0.75rem !important;
+            transition: border-color 0.2s;
+            width: 100%;
+            font-family: inherit;
+        }
+        input:focus, select:focus {
+            border-color: #818cf8 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        input::placeholder {
+            color: #94a3b8 !important;
+        }
+        .w-full { width: 100%; }
+        .w-auto { width: auto; }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-gray { color: #94a3b8; }
+        .text-gray-200 { color: #e2e8f0; }
+        .text-gray-400 { color: #94a3b8; }
+        .text-white { color: white; }
+        .text-blue-400 { color: #60a5fa; }
+        .text-green-200 { color: #86efac; }
+        .text-red-200 { color: #fca5a5; }
+        .text-yellow-400 { color: #fbbf24; }
+        .font-bold { font-weight: 700; }
+        .font-mono { font-family: 'Courier New', monospace; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-3 { margin-top: 0.75rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+
+        /* ===== Tables / Lists ===== */
+        .account-item, .trade-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+        }
+        .account-item:nth-child(even), .trade-item:nth-child(even) {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .account-item:hover, .trade-item:hover {
+            background: rgba(51, 65, 85, 0.4);
+        }
+        .trade-badge {
+            padding: 0.2rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .badge-buy {
+            background: rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
+        .badge-sell {
+            background: rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        /* ===== Log & Notification ===== */
+        .log-container, .notif-container {
+            height: 350px;
+            overflow-y: auto;
+            background: #0b0e14;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            border: 1px solid #1e293b;
+        }
+        .log-entry, .notif-entry {
+            padding: 4px 8px;
+            border-bottom: 1px solid #1a2233;
+            color: #e2e8f0;
+        }
+        .log-time { color: #60a5fa; font-weight: 500; }
+        .notif-time { color: #fbbf24; font-weight: 500; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: #1f2937;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid #4b5563;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+        }
+        .modal-box h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1rem;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .modal-actions .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* ===== Utility ===== */
+        .hidden { display: none; }
+        .overflow-auto { overflow: auto; }
+        .min-w-800 { min-width: 800px; }
+        .max-h-60 { max-height: 240px; overflow-y: auto; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-y-3 > * + * { margin-top: 0.75rem; }
+
+        /* responsive */
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .grid-2col { grid-template-columns: 1fr; }
+            .header { flex-direction: column; align-items: stretch; }
+            .header-actions { justify-content: center; flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">🤖</div>
+            <div>
+                <h1>ربات معاملاتی ایزی‌تریدر</h1>
+                <p>ثبت سفارش همزمان برای چند نماد و چند اکانت</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="status-badge">
+                <span id="statusDot" class="dot"></span>
+                <span id="statusText" class="text-sm text-gray-400">متوقف</span>
+            </div>
+            <button onclick="runBot()" class="btn btn-success">▶ شروع</button>
+            <button onclick="stopBot()" class="btn btn-danger">⏹ توقف</button>
+        </div>
+    </header>
+
+    <!-- ===== ROW 1: Accounts + New Trade ===== -->
+    <div class="grid-2 mb-6">
+        <!-- Accounts -->
+        <div class="card">
+            <h2 class="card-title">👥 حساب‌های صرافی</h2>
+            <div id="accountsTable" class="space-y-2 max-h-60 mb-4"></div>
+            <div class="grid-3">
+                <input type="text" id="accName" placeholder="نام (اختیاری)">
+                <input type="text" id="accUsername" placeholder="نام کاربری">
+                <input type="password" id="accPassword" placeholder="رمز عبور">
+            </div>
+            <button onclick="addAccount()" class="btn btn-primary btn-block mt-3">➕ افزودن حساب</button>
+        </div>
+
+        <!-- New Trade -->
+        <div class="card">
+            <h2 class="card-title">📈 معامله جدید</h2>
+            <div class="space-y-3">
+                <input type="text" id="tradeSymbol" placeholder="نماد (مثال: وبملت)">
+                <div class="grid-2col">
+                    <select id="tradeType">
+                        <option value="خرید">خرید</option>
+                        <option value="فروش">فروش</option>
+                    </select>
+                    <input type="text" id="tradeAmount" placeholder="مبلغ/تعداد (مثال: ۵,۰۰۰,۰۰۰)" oninput="formatAmountInput(this)">
+                </div>
+                <div class="grid-2col">
+                    <input type="time" step="1" id="tradeTime">
+                    <select id="tradeAccount"></select>
+                </div>
+                <button onclick="addTrade()" class="btn btn-success btn-block">➕ افزودن به لیست</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ROW 2: Trades List ===== -->
+    <div class="card mb-6">
+        <h2 class="card-title">📋 لیست معاملات</h2>
+        <div class="overflow-auto min-w-800" id="tradesTable"></div>
+    </div>
+
+    <!-- ===== ROW 3: Settings ===== -->
+    <div class="grid-2 mb-6">
+        <div class="card flex-wrap">
+            <span class="text-gray-200 font-bold">⚙️ دقت زمان ارسال (ms):</span>
+            <input type="number" id="precisionMs" min="0" max="500" value="20" class="w-auto" style="width:80px;">
+            <button onclick="savePrecision()" class="btn btn-primary btn-sm">💾 اعمال</button>
+            <span class="text-xs text-gray">(کمتر = دقیق‌تر، مصرف CPU بیشتر)</span>
+        </div>
+        <div class="card flex-wrap">
+            <span class="text-gray-200 font-bold">⏱️ زودتر کلیک کردن (offset):</span>
+            <input type="number" id="offsetValue" min="0" value="0" class="w-auto" style="width:70px;">
+            <select id="offsetUnit" style="width:100px;">
+                <option value="ms">میلی‌ثانیه</option>
+                <option value="s">ثانیه</option>
+            </select>
+            <button onclick="saveOffset()" class="btn btn-primary btn-sm">💾 اعمال</button>
+            <span class="text-xs text-gray">(مثبت = کلیک زودتر)</span>
+        </div>
+    </div>
+
+    <!-- ===== ROW 4: Logs ===== -->
+    <div class="card mb-6">
+        <h2 class="card-title">💻 لاگ‌های ربات</h2>
+        <div id="logContainer" class="log-container"></div>
+    </div>
+
+    <!-- ===== ROW 5: Notifications ===== -->
+    <div class="card mb-6">
+        <h2 class="card-title">🔔 نوتیفیکیشن‌ها</h2>
+        <div id="notifContainer" class="notif-container"></div>
+    </div>
+
+    <!-- ===== MODAL ===== -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>✏️ ویرایش معامله</h3>
+            <div class="space-y-3">
+                <input type="text" id="editSymbol" placeholder="نماد">
+                <select id="editType">
+                    <option value="خرید">خرید</option>
+                    <option value="فروش">فروش</option>
+                </select>
+                <input type="text" id="editAmount" placeholder="مبلغ/تعداد (مثال: ۵,۰۰۰,۰۰۰)" oninput="formatAmountInput(this)">
+                <input type="time" step="1" id="editTime">
+                <select id="editAccount"></select>
+                <div class="modal-actions">
+                    <button onclick="saveEdit()" class="btn btn-primary">ذخیره</button>
+                    <button onclick="closeModal()" class="btn" style="background:#4b5563;">انصراف</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ===== (همان اسکریپت قبلی، بدون تغییر) =====
+    let accounts = [];
+    let trades = [];
+    let logInterval = null;
+    let notifInterval = null;
+
+    // ===== تابع فرمت‌دهی لحظه‌ای اعداد =====
+    function formatAmountInput(el) {
+        let raw = el.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+        if (raw === '') {
+            el.value = '';
+            return;
+        }
+        let num = parseInt(raw, 10);
+        if (isNaN(num)) {
+            el.value = '';
+            return;
+        }
+        el.value = num.toLocaleString();
+    }
+
+    // ===== توابع کمکی =====
+    function parseAmount(value) {
+        return parseInt(String(value).replace(/,/g, '')) || 0;
+    }
+
+    function formatAmount(value) {
+        return Number(value).toLocaleString();
+    }
+
+    // ===== بارگذاری تنظیمات =====
+    async function loadSettings() {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        accounts = data.accounts || [];
+        trades = data.trades || [];
+        renderAccounts();
+        renderTrades();
+        updateAccountDropdowns();
+        updateStatus(false);
+    }
+
+    function updateStatus(running) {
+        const dot = document.getElementById('statusDot');
+        const text = document.getElementById('statusText');
+        if (running) {
+            dot.className = 'dot green';
+            text.textContent = 'در حال اجرا';
+            text.className = 'text-sm text-green-200';
+        } else {
+            dot.className = 'dot';
+            text.textContent = 'متوقف';
+            text.className = 'text-sm text-gray-400';
+        }
+    }
+
+    // ===== لاگ‌ها =====
+    function startLogPolling() {
+        if (logInterval) clearInterval(logInterval);
+        logInterval = setInterval(async () => {
+            const res = await fetch('/api/logs');
+            const logs = await res.json();
+            updateLogDisplay(logs);
+        }, 1000);
+    }
+
+    function updateLogDisplay(logs) {
+        const container = document.getElementById('logContainer');
+        if (!container) return;
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+        const recent = logs.slice(-80);
+        container.innerHTML = recent.map(log => {
+            let prefix = '';
+            if (log.account) {
+                prefix += `<span class="text-yellow-400">[${escapeHtml(log.account)}]</span>`;
+            }
+            if (log.symbol) {
+                prefix += `<span class="text-blue-400">[${escapeHtml(log.symbol)}]</span>`;
+            }
+            return `<div class="log-entry">
+                        <span class="log-time">[${log.time}]</span>
+                        ${prefix}
+                        <span>${escapeHtml(log.message)}</span>
+                    </div>`;
+        }).join('');
+        if (isAtBottom) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    // ===== نوتیفیکیشن‌ها =====
+    function startNotifPolling() {
+        if (notifInterval) clearInterval(notifInterval);
+        notifInterval = setInterval(async () => {
+            const res = await fetch('/api/notifications');
+            const notifs = await res.json();
+            updateNotifDisplay(notifs);
+        }, 1500);
+    }
+
+    function updateNotifDisplay(notifs) {
+        const container = document.getElementById('notifContainer');
+        if (!container) return;
+        if (!notifs || notifs.length === 0) {
+            container.innerHTML = `<div class="text-gray-400 text-center py-4">هنوز نوتیفیکیشنی دریافت نشده است</div>`;
+            return;
+        }
+        const recent = notifs.slice(-40);
+        container.innerHTML = recent.map(line => {
+            const match = line.match(/\[(.*?)\]\s*\[(.*?)\]\s*\[(.*?)\]\s*(.*)/);
+            if (match) {
+                const [, timestamp, account, symbol, msg] = match;
+                return `<div class="notif-entry">
+                            <span class="notif-time">[${timestamp}]</span>
+                            <span class="text-yellow-400">[${escapeHtml(account)}]</span>
+                            <span class="text-blue-400">[${escapeHtml(symbol)}]</span>
+                            <span>${escapeHtml(msg)}</span>
+                        </div>`;
+            } else {
+                const matchOld = line.match(/\[(.*?)\]\s*\[(.*?)\]\s*(.*)/);
+                if (matchOld) {
+                    const [, timestamp, symbol, msg] = matchOld;
+                    return `<div class="notif-entry">
+                                <span class="notif-time">[${timestamp}]</span>
+                                <span class="text-blue-400">[${escapeHtml(symbol)}]</span>
+                                <span>${escapeHtml(msg)}</span>
+                            </div>`;
+                }
+                return `<div class="notif-entry">${escapeHtml(line)}</div>`;
+            }
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // ===== مدیریت حساب‌ها =====
+    async function addAccount() {
+        const name = document.getElementById('accName').value.trim();
+        const username = document.getElementById('accUsername').value.trim();
+        const password = document.getElementById('accPassword').value.trim();
+        if (!username || !password) { alert('نام کاربری و رمز عبور الزامی است'); return; }
+        const res = await fetch('/api/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, username, password })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            accounts = data.accounts;
+            renderAccounts();
+            updateAccountDropdowns();
+            document.getElementById('accName').value = '';
+            document.getElementById('accUsername').value = '';
+            document.getElementById('accPassword').value = '';
+        } else alert('خطا در افزودن حساب');
+    }
+
+    async function deleteAccount(idx) {
+        if (accounts.length <= 1) { alert('حداقل یک حساب باید باقی بماند'); return; }
+        if (!confirm('حذف حساب؟')) return;
+        const res = await fetch(`/api/accounts/${idx}`, { method: 'DELETE' });
+        if (res.ok) {
+            const data = await res.json();
+            accounts = data.accounts;
+            renderAccounts();
+            updateAccountDropdowns();
+            const settingsRes = await fetch('/api/settings');
+            const settings = await settingsRes.json();
+            trades = settings.trades;
+            renderTrades();
+        } else alert('خطا در حذف حساب');
+    }
+
+    function renderAccounts() {
+        const container = document.getElementById('accountsTable');
+        if (!accounts.length) {
+            container.innerHTML = '<div class="text-center text-gray-400 py-4">هیچ حسابی ثبت نشده است</div>';
+            return;
+        }
+        let html = '';
+        accounts.forEach((acc, idx) => {
+            html += `
+                <div class="account-item">
+                    <div class="font-bold text-white">${escapeHtml(acc.name)}</div>
+                    <div class="font-mono text-gray-200">${escapeHtml(acc.username)}</div>
+                    <div class="text-gray-400">••••••••</div>
+                    <div>
+                        ${accounts.length > 1 ? `<button onclick="deleteAccount(${idx})" class="btn btn-danger btn-sm">🗑</button>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    // ===== مدیریت معاملات =====
+    let editIndex = null;
+
+    function openEditModal(trade, idx) {
+        editIndex = idx;
+        document.getElementById('editSymbol').value = trade.symbol;
+        document.getElementById('editType').value = trade.type;
+        document.getElementById('editAmount').value = formatAmount(trade.amount);
+        document.getElementById('editTime').value = trade.target_time;
+        const select = document.getElementById('editAccount');
+        select.innerHTML = accounts.map((acc, aidx) => `<option value="${aidx}" ${trade.account_id === aidx ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`).join('');
+        document.getElementById('editModal').classList.add('active');
+    }
+
+    async function saveEdit() {
+        const symbol = document.getElementById('editSymbol').value.trim();
+        const type = document.getElementById('editType').value;
+        const amountRaw = document.getElementById('editAmount').value.trim().replace(/,/g, '');
+        const amount = parseInt(amountRaw);
+        const target_time = document.getElementById('editTime').value;
+        const account_id = parseInt(document.getElementById('editAccount').value);
+        if (!symbol || !amountRaw || !target_time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
+        if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
+        const res = await fetch(`/api/trades/${editIndex}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, type, amount, target_time, account_id })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+            closeModal();
+        } else alert('خطا در ویرایش معامله');
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.remove('active');
+        editIndex = null;
+    }
+
+    async function addTrade() {
+        const symbol = document.getElementById('tradeSymbol').value.trim();
+        const type = document.getElementById('tradeType').value;
+        const amountRaw = document.getElementById('tradeAmount').value.trim().replace(/,/g, '');
+        const amount = parseInt(amountRaw);
+        const time = document.getElementById('tradeTime').value;
+        const account_id = parseInt(document.getElementById('tradeAccount').value);
+        if (!symbol || !amountRaw || !time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
+        if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
+        if (!/^\d{2}:\d{2}:\d{2}$/.test(time)) { alert('فرمت ساعت باید HH:MM:SS باشد'); return; }
+        const res = await fetch('/api/trades', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, type, amount, target_time: time, account_id })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+            document.getElementById('tradeSymbol').value = '';
+            document.getElementById('tradeAmount').value = '';
+            document.getElementById('tradeTime').value = getDefaultTime();
+        } else alert('خطا در افزودن معامله');
+    }
+
+    async function deleteTrade(idx) {
+        if (!confirm('حذف معامله؟')) return;
+        const res = await fetch(`/api/trades/${idx}`, { method: 'DELETE' });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+        } else alert('خطا در حذف معامله');
+    }
+
+    async function updateTradeAccount(tradeIdx, newAccountId) {
+        const trade = trades[tradeIdx];
+        const res = await fetch(`/api/trades/${tradeIdx}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: trade.symbol,
+                type: trade.type,
+                amount: trade.amount,
+                target_time: trade.target_time,
+                account_id: parseInt(newAccountId)
+            })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+        }
+    }
+
+    function renderTrades() {
+        const container = document.getElementById('tradesTable');
+        if (!trades.length) {
+            container.innerHTML = '<div class="text-center text-gray-400 py-8">هیچ معامله‌ای تعریف نشده است</div>';
+            return;
+        }
+        let html = '';
+        trades.forEach((trade, idx) => {
+            const isBuy = trade.type === 'خرید';
+            const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
+            const badgeIcon = isBuy ? '▲ خرید' : '▼ فروش';
+            const amountFormatted = formatAmount(trade.amount);
+            html += `
+                <div class="trade-item">
+                    <div class="font-bold text-white" style="min-width:80px;">${escapeHtml(trade.symbol)}</div>
+                    <div><span class="trade-badge ${badgeClass}">${badgeIcon}</span></div>
+                    <div class="text-gray-200">${amountFormatted}</div>
+                    <div style="display:flex; align-items:center; gap:0.3rem;">
+                        <span class="font-mono text-gray-200">${escapeHtml(trade.target_time)}</span>
+                        <button onclick="setTimeOffset(${idx}, 1)" class="btn btn-primary btn-sm">+1</button>
+                        <button onclick="setTimeOffset(${idx}, 5)" class="btn btn-primary btn-sm">+5</button>
+                        <button onclick="setTimeOffset(${idx}, 10)" class="btn btn-primary btn-sm">+10</button>
+                    </div>
+                    <div>
+                        <select onchange="updateTradeAccount(${idx}, this.value)" style="width:auto; padding:0.2rem 0.5rem;">
+                            ${accounts.map((acc, aidx) => `<option value="${aidx}" ${trade.account_id === aidx ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:0.3rem;">
+                        <button onclick="openEditModal(trades[${idx}], ${idx})" class="btn btn-primary btn-sm">✏️</button>
+                        <button onclick="deleteTrade(${idx})" class="btn btn-danger btn-sm">🗑</button>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    // ===== تنظیم سریع زمان =====
+    async function setTimeOffset(index, offsetMinutes) {
+        const now = new Date();
+        let minutes = now.getMinutes();
+        if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
+            minutes += 1;
+        }
+        let hours = now.getHours();
+        if (minutes >= 60) {
+            minutes -= 60;
+            hours += 1;
+        }
+        if (hours >= 24) hours -= 24;
+
+        minutes += offsetMinutes;
+        const extraHours = Math.floor(minutes / 60);
+        minutes = minutes % 60;
+        hours = (hours + extraHours) % 24;
+
+        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+
+        const trade = trades[index];
+        if (!trade) return;
+
+        const res = await fetch(`/api/trades/${index}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: trade.symbol,
+                type: trade.type,
+                amount: trade.amount,
+                target_time: timeStr,
+                account_id: trade.account_id
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+        } else {
+            alert('❌ خطا در به‌روزرسانی زمان');
+        }
+    }
+
+    function updateAccountDropdowns() {
+        const addSelect = document.getElementById('tradeAccount');
+        if (addSelect) {
+            addSelect.innerHTML = accounts.map((acc, idx) => `<option value="${idx}">${escapeHtml(acc.name)}</option>`).join('');
+        }
+    }
+
+    function getDefaultTime() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 1);
+        now.setSeconds(0);
+        return now.toTimeString().slice(0,8);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // ===== دقت =====
+    async function loadPrecision() {
+        const res = await fetch('/api/precision');
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('precisionMs').value = data.precision_ms;
+        }
+    }
+
+    async function savePrecision() {
+        const val = parseInt(document.getElementById('precisionMs').value);
+        if (isNaN(val)) return;
+        const res = await fetch('/api/precision', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ precision_ms: val })
+        });
+        if (res.ok) alert('تنظیمات دقت ذخیره شد');
+        else alert('خطا در ذخیره تنظیمات');
+    }
+
+    // ===== offset =====
+    async function loadOffset() {
+        const res = await fetch('/api/offset');
+        if (res.ok) {
+            const data = await res.json();
+            const offsetMs = data.offset_ms || 0;
+            const input = document.getElementById('offsetValue');
+            const unit = document.getElementById('offsetUnit');
+            if (offsetMs >= 1000 && offsetMs % 1000 === 0) {
+                input.value = offsetMs / 1000;
+                unit.value = 's';
+            } else {
+                input.value = offsetMs;
+                unit.value = 'ms';
+            }
+        }
+    }
+
+    async function saveOffset() {
+        let val = parseFloat(document.getElementById('offsetValue').value);
+        if (isNaN(val) || val < 0) { alert('عدد مثبت وارد کنید'); return; }
+        const unit = document.getElementById('offsetUnit').value;
+        let offsetMs = unit === 's' ? Math.round(val * 1000) : Math.round(val);
+        const res = await fetch('/api/offset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ offset_ms: offsetMs })
+        });
+        if (res.ok) {
+            alert('تنظیمات offset ذخیره شد');
+            loadOffset();
+        } else {
+            alert('خطا در ذخیره تنظیمات');
+        }
+    }
+
+    // ===== شروع / توقف =====
+    async function runBot() {
+        if (accounts.length === 0) { alert('حداقل یک حساب اضافه کنید'); return; }
+        if (trades.length === 0) { alert('حداقل یک معامله اضافه کنید'); return; }
+        const res = await fetch('/api/run', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ ربات با موفقیت شروع به کار کرد. پنجره‌های مرورگر باز خواهند شد.');
+            updateStatus(true);
+        } else {
+            alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
+        }
+    }
+
+    async function stopBot() {
+        const res = await fetch('/api/stop', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ دستور توقف ارسال شد. مرورگرها در حال بسته شدن هستند.');
+            updateStatus(false);
+        } else {
+            alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
+        }
+    }
+
+    // ===== مقداردهی اولیه =====
+    window.onload = () => {
+        loadSettings();
+        document.getElementById('tradeTime').value = getDefaultTime();
+        startLogPolling();
+        startNotifPolling();
+        loadPrecision();
+        loadOffset();
+    };
+</script>
+</body>
+</html>
