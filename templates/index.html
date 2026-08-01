@@ -447,6 +447,7 @@
     let trades = [];
     let logInterval = null;
     let notifInterval = null;
+    let editTradeId = null;
 
     // ===== تابع فرمت‌دهی لحظه‌ای اعداد =====
     function formatAmountInput(el) {
@@ -640,7 +641,12 @@
     let editIndex = null;
 
 
-function openEditModal(trade, tradeId) {
+function openEditModal(tradeId) {
+    const trade = trades.find(t => t.id === tradeId);
+    if (!trade) {
+        alert('معامله یافت نشد!');
+        return;
+    }
     editTradeId = tradeId;
     document.getElementById('editSymbol').value = trade.symbol;
     document.getElementById('editType').value = trade.type;
@@ -652,7 +658,6 @@ function openEditModal(trade, tradeId) {
     ).join('');
     document.getElementById('editModal').classList.add('active');
 }
-
 async function saveEdit() {
     const symbol = document.getElementById('editSymbol').value.trim();
     const type = document.getElementById('editType').value;
@@ -777,7 +782,7 @@ function renderTrades() {
                     </select>
                 </div>
                 <div style="display:flex; gap:0.3rem;">
-                    <button onclick="openEditModal(trade, ${trade.id})" class="btn btn-primary btn-sm">✏️</button>
+                    <button onclick="openEditModal(${trade.id})" class="btn btn-primary btn-sm">✏️</button>
                     <button onclick="deleteTrade(${trade.id})" class="btn btn-danger btn-sm">🗑</button>
                 </div>
             </div>

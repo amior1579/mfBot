@@ -4,7 +4,8 @@ import re
 import contextvars
 from datetime import datetime, timedelta
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
-
+import os
+from dotenv import load_dotenv
 # ──────────── Constants ────────────
 LOGIN_URL = "https://login.emofid.com/Login"
 TRADE_URL = "https://d.easytrader.ir"
@@ -358,14 +359,14 @@ async def run_single_trade(
     precision_ms: int = 20,
     click_offset_ms: int = 0,
 ) -> None:
-    # تنظیم context مخصوص این تسک
     token_account = _log_account_ctx.set(account_name)
     token_symbol = _log_symbol_ctx.set(trade["symbol"])
     try:
         log(f"🚀 شروع معامله {trade_index+1}: {trade['symbol']} - {trade['order_type']} (حساب: {account_name})")
         async with async_playwright() as pw:
+            headless_mode = os.getenv("HEADLESS", "false").lower() == "true"
             browser = await pw.firefox.launch(
-                headless=True,
+                headless=headless_mode,
                 args=[
                     "--start-maximized",
                     "--disable-gpu",
