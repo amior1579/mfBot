@@ -79,6 +79,15 @@ class DatabaseManager:
             cur.execute("DELETE FROM accounts WHERE id = %s;", (account_id,))
             conn.commit()
 
+    def update_account(self, account_id, name, username, password):
+        conn = self.get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE accounts SET name=%s, username=%s, password=%s WHERE id=%s;",
+                (name, username, password, account_id)
+            )
+            conn.commit()
+
     # ──────────── Trades ────────────
     def get_trades(self):
         conn = self.get_connection()

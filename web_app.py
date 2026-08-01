@@ -45,6 +45,19 @@ def delete_account(account_id):
         return jsonify({"status": "ok", "accounts": db.get_accounts()})
     return jsonify({"error": "حساب یافت نشد"}), 404
 
+@app.route("/api/accounts/<int:account_id>", methods=["PUT"])
+def update_account(account_id):
+    data = request.json
+    name = data.get("name", "").strip()
+    username = data.get("username")
+    password = data.get("password")
+    if not username or not password:
+        return jsonify({"error": "نام کاربری و رمز عبور الزامی است"}), 400
+    if not name:
+        name = f"حساب {account_id}"
+    db.update_account(account_id, name, username, password)
+    return jsonify({"status": "ok", "accounts": db.get_accounts()})
+
 # ===================== مدیریت معاملات =====================
 @app.route("/api/trades", methods=["POST"])
 def add_trade():

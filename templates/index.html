@@ -418,6 +418,22 @@
         <div id="notifContainer" class="notif-container"></div>
     </div>
 
+    <!-- ===== MODAL EDIT ACCOUNT ===== -->
+    <div id="editAccountModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>✏️ ویرایش حساب</h3>
+        <div class="space-y-3">
+            <input type="text" id="editAccName" placeholder="نام حساب">
+            <input type="text" id="editAccUsername" placeholder="نام کاربری">
+            <input type="password" id="editAccPassword" placeholder="رمز عبور جدید (در صورت تمایل)">
+            <div class="modal-actions">
+                <button onclick="saveEditAccount()" class="btn btn-primary">ذخیره</button>
+                <button onclick="closeEditAccountModal()" class="btn" style="background:#4b5563;">انصراف</button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- ===== MODAL ===== -->
     <div id="editModal" class="modal-overlay">
         <div class="modal-box">
@@ -448,6 +464,8 @@
     let logInterval = null;
     let notifInterval = null;
     let editTradeId = null;
+    let editIndex = null;
+    let editAccountId = null;
 
     // ===== تابع فرمت‌دهی لحظه‌ای اعداد =====
     function formatAmountInput(el) {
@@ -599,257 +617,308 @@
         } else alert('خطا در افزودن حساب');
     }
 
-    async function deleteAccount(idx) {
-        if (accounts.length <= 1) { alert('حداقل یک حساب باید باقی بماند'); return; }
-        if (!confirm('حذف حساب؟')) return;
-        const res = await fetch(`/api/accounts/${idx}`, { method: 'DELETE' });
-        if (res.ok) {
-            const data = await res.json();
-            accounts = data.accounts;
-            renderAccounts();
-            updateAccountDropdowns();
-            const settingsRes = await fetch('/api/settings');
-            const settings = await settingsRes.json();
-            trades = settings.trades;
-            renderTrades();
-        } else alert('خطا در حذف حساب');
-    }
-
-    function renderAccounts() {
-        const container = document.getElementById('accountsTable');
-        if (!accounts.length) {
-            container.innerHTML = '<div class="text-center text-gray-400 py-4">هیچ حسابی ثبت نشده است</div>';
-            return;
-        }
-        let html = '';
-        accounts.forEach((acc, idx) => {
-            html += `
-                <div class="account-item">
-                    <div class="font-bold text-white">${escapeHtml(acc.name)}</div>
-                    <div class="font-mono text-gray-200">${escapeHtml(acc.username)}</div>
-                    <div class="text-gray-400">••••••••</div>
-                    <div>
-                        ${accounts.length > 1 ? `<button onclick="deleteAccount(${idx})" class="btn btn-danger btn-sm">🗑</button>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
-    }
-
-    // ===== مدیریت معاملات =====
-    let editIndex = null;
-
-
-function openEditModal(tradeId) {
-    const trade = trades.find(t => t.id === tradeId);
-    if (!trade) {
-        alert('معامله یافت نشد!');
+async function deleteAccount(accountId) {
+    if (accounts.length <= 1) {
+        alert('حداقل یک حساب باید باقی بماند');
         return;
     }
-    editTradeId = tradeId;
-    document.getElementById('editSymbol').value = trade.symbol;
-    document.getElementById('editType').value = trade.type;
-    document.getElementById('editAmount').value = formatAmount(trade.amount);
-    document.getElementById('editTime').value = trade.target_time;
-    const select = document.getElementById('editAccount');
-    select.innerHTML = accounts.map(acc =>
-        `<option value="${acc.id}" ${trade.account_id === acc.id ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`
-    ).join('');
-    document.getElementById('editModal').classList.add('active');
-}
-async function saveEdit() {
-    const symbol = document.getElementById('editSymbol').value.trim();
-    const type = document.getElementById('editType').value;
-    const amountRaw = document.getElementById('editAmount').value.trim().replace(/,/g, '');
-    const amount = parseInt(amountRaw);
-    const target_time = document.getElementById('editTime').value;
-    const account_id = parseInt(document.getElementById('editAccount').value);
-    if (!symbol || !amountRaw || !target_time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
-    if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
-    const res = await fetch(`/api/trades/${editTradeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, type, amount, target_time, account_id })
-    });
+    if (!confirm('آیا از حذف این حساب مطمئن هستید؟')) return;
+    const res = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
     if (res.ok) {
         const data = await res.json();
-        trades = data.trades;
-        renderTrades();
-        closeModal();
-    } else {
-        const err = await res.json();
-        alert('خطا در ویرایش معامله: ' + (err.error || 'مشخص نیست'));
-    }
-}
-
-async function deleteTrade(tradeId) {
-    if (!confirm('حذف معامله؟')) return;
-    const res = await fetch(`/api/trades/${tradeId}`, { method: 'DELETE' });
-    if (res.ok) {
-        const data = await res.json();
-        trades = data.trades;
+        accounts = data.accounts;
+        renderAccounts();
+        updateAccountDropdowns();
+        // همچنین معاملات مرتبط با این حساب حذف می‌شوند (به دلیل CASCADE) پس لیست معاملات را نیز به‌روز می‌کنیم
+        const settingsRes = await fetch('/api/settings');
+        const settings = await settingsRes.json();
+        trades = settings.trades || [];
         renderTrades();
     } else {
         const err = await res.json();
-        alert('خطا در حذف معامله: ' + (err.error || 'مشخص نیست'));
+        alert('خطا در حذف حساب: ' + (err.error || 'مشخص نیست'));
     }
 }
-
-async function updateTradeAccount(tradeId, newAccountId) {
-    // ابتدا trade مورد نظر را پیدا کنید
-    const trade = trades.find(t => t.id === tradeId);
-    if (!trade) return;
-    const res = await fetch(`/api/trades/${tradeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            symbol: trade.symbol,
-            type: trade.type,
-            amount: trade.amount,
-            target_time: trade.target_time,
-            account_id: parseInt(newAccountId)
-        })
-    });
-    if (res.ok) {
-        const data = await res.json();
-        trades = data.trades;
-        renderTrades();
-    } else {
-        const err = await res.json();
-        alert('خطا در تغییر حساب: ' + (err.error || 'مشخص نیست'));
-    }
-}
-
-    async function addTrade() {
-        const symbol = document.getElementById('tradeSymbol').value.trim();
-        const type = document.getElementById('tradeType').value;
-        const amountRaw = document.getElementById('tradeAmount').value.trim().replace(/,/g, '');
-        const amount = parseInt(amountRaw);
-        const time = document.getElementById('tradeTime').value;
-        const account_id = parseInt(document.getElementById('tradeAccount').value);
-        if (!symbol || !amountRaw || !time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
-        if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
-        if (!/^\d{2}:\d{2}:\d{2}$/.test(time)) { alert('فرمت ساعت باید HH:MM:SS باشد'); return; }
-        const res = await fetch('/api/trades', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol, type, amount, target_time: time, account_id })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            trades = data.trades;
-            renderTrades();
-            document.getElementById('tradeSymbol').value = '';
-            document.getElementById('tradeAmount').value = '';
-            document.getElementById('tradeTime').value = getDefaultTime();
-        } else alert('خطا در افزودن معامله');
-    }
-
-function closeModal() {
-    document.getElementById('editModal').classList.remove('active');
-    editTradeId = null;
-}
-
-function renderTrades() {
-    const container = document.getElementById('tradesTable');
-    if (!trades.length) {
-        container.innerHTML = '<div class="text-center text-gray-400 py-8">هیچ معامله‌ای تعریف نشده است</div>';
+    function renderAccounts() {
+    const container = document.getElementById('accountsTable');
+    if (!accounts.length) {
+        container.innerHTML = '<div class="text-center text-gray-400 py-4">هیچ حسابی ثبت نشده است</div>';
         return;
     }
     let html = '';
-    trades.forEach(trade => {
-        const isBuy = trade.type === 'خرید';
-        const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
-        const badgeIcon = isBuy ? '▲ خرید' : '▼ فروش';
-        const amountFormatted = formatAmount(trade.amount);
+    accounts.forEach(acc => {
         html += `
-            <div class="trade-item">
-                <div class="font-bold text-white" style="min-width:80px;">${escapeHtml(trade.symbol)}</div>
-                <div><span class="trade-badge ${badgeClass}">${badgeIcon}</span></div>
-                <div class="text-gray-200">${amountFormatted}</div>
-                <div style="display:flex; align-items:center; gap:0.3rem;">
-                    <span class="font-mono text-gray-200">${escapeHtml(trade.target_time)}</span>
-                    <button onclick="setTimeOffset(${trade.id}, 1)" class="btn btn-primary btn-sm">+1</button>
-                    <button onclick="setTimeOffset(${trade.id}, 5)" class="btn btn-primary btn-sm">+5</button>
-                    <button onclick="setTimeOffset(${trade.id}, 10)" class="btn btn-primary btn-sm">+10</button>
-                </div>
+            <div class="account-item">
+                <div class="font-bold text-white">${escapeHtml(acc.name)}</div>
+                <div class="font-mono text-gray-200">${escapeHtml(acc.username)}</div>
+                <div class="text-gray-400">••••••••</div>
                 <div>
-                    <select onchange="updateTradeAccount(${trade.id}, this.value)" style="width:auto; padding:0.2rem 0.5rem;">
-                        ${accounts.map(acc =>
-                            `<option value="${acc.id}" ${trade.account_id === acc.id ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`
-                        ).join('')}
-                    </select>
-                </div>
-                <div style="display:flex; gap:0.3rem;">
-                    <button onclick="openEditModal(${trade.id})" class="btn btn-primary btn-sm">✏️</button>
-                    <button onclick="deleteTrade(${trade.id})" class="btn btn-danger btn-sm">🗑</button>
+                    <button onclick="openEditAccountModal(${acc.id})" class="btn btn-primary btn-sm">✏️</button>
+                    ${accounts.length > 1 ? `<button onclick="deleteAccount(${acc.id})" class="btn btn-danger btn-sm">🗑</button>` : ''}
                 </div>
             </div>
         `;
     });
     container.innerHTML = html;
 }
-    // ===== تنظیم سریع زمان =====
-async function setTimeOffset(tradeId, offsetMinutes) {
-    const trade = trades.find(t => t.id === tradeId);
-    if (!trade) return;
 
-    const now = new Date();
-    let minutes = now.getMinutes();
-    if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
-        minutes += 1;
+    function openEditModal(tradeId) {
+        const trade = trades.find(t => t.id === tradeId);
+        if (!trade) {
+            alert('معامله یافت نشد!');
+            return;
+        }
+        editTradeId = tradeId;
+        document.getElementById('editSymbol').value = trade.symbol;
+        document.getElementById('editType').value = trade.type;
+        document.getElementById('editAmount').value = formatAmount(trade.amount);
+        document.getElementById('editTime').value = trade.target_time;
+        const select = document.getElementById('editAccount');
+        select.innerHTML = accounts.map(acc =>
+            `<option value="${acc.id}" ${trade.account_id === acc.id ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`
+        ).join('');
+        document.getElementById('editModal').classList.add('active');
     }
-    let hours = now.getHours();
-    if (minutes >= 60) {
-        minutes -= 60;
-        hours += 1;
+
+    function openEditAccountModal(accountId) {
+    const acc = accounts.find(a => a.id === accountId);
+    if (!acc) {
+        alert('حساب یافت نشد!');
+        return;
     }
-    if (hours >= 24) hours -= 24;
+    editAccountId = accountId;
+    document.getElementById('editAccName').value = acc.name || '';
+    document.getElementById('editAccUsername').value = acc.username || '';
+    document.getElementById('editAccPassword').value = '';  // خالی برای امنیت
+    document.getElementById('editAccountModal').classList.add('active');
+}
 
-    minutes += offsetMinutes;
-    const extraHours = Math.floor(minutes / 60);
-    minutes = minutes % 60;
-    hours = (hours + extraHours) % 24;
-
-    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-
-    const res = await fetch(`/api/trades/${tradeId}`, {
+async function saveEditAccount() {
+    const name = document.getElementById('editAccName').value.trim();
+    const username = document.getElementById('editAccUsername').value.trim();
+    const password = document.getElementById('editAccPassword').value.trim();
+    if (!username) {
+        alert('نام کاربری الزامی است');
+        return;
+    }
+    // اگر رمز خالی بود، رمز قبلی را نگه داریم (یا می‌توانیم اجبار به وارد کردن رمز جدید کنیم)
+    // در اینجا اگر رمز خالی باشد، همان رمز قبلی را ارسال نمی‌کنیم، اما برای سادگی، اگر خالی باشد، مقدار قبلی را از accounts می‌گیریم.
+    const acc = accounts.find(a => a.id === editAccountId);
+    const finalPassword = password || acc.password;  // اگر خالی بود، همان قبلی
+    const res = await fetch(`/api/accounts/${editAccountId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            symbol: trade.symbol,
-            type: trade.type,
-            amount: trade.amount,
-            target_time: timeStr,
-            account_id: trade.account_id
-        })
+        body: JSON.stringify({ name, username, password: finalPassword })
     });
-
     if (res.ok) {
         const data = await res.json();
-        trades = data.trades;
-        renderTrades();
+        accounts = data.accounts;
+        renderAccounts();
+        updateAccountDropdowns();
+        closeEditAccountModal();
     } else {
         const err = await res.json();
-        alert('خطا در به‌روزرسانی زمان: ' + (err.error || 'مشخص نیست'));
+        alert('خطا در ویرایش حساب: ' + (err.error || 'مشخص نیست'));
     }
 }
-function updateAccountDropdowns() {
-    const addSelect = document.getElementById('tradeAccount');
-    if (addSelect) {
-        addSelect.innerHTML = accounts.map(acc =>
-            `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`
-        ).join('');
-    }
-    // همچنین برای مودال ویرایش
-    const editSelect = document.getElementById('editAccount');
-    if (editSelect) {
-        editSelect.innerHTML = accounts.map(acc =>
-            `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`
-        ).join('');
-    }
+
+function closeEditAccountModal() {
+    document.getElementById('editAccountModal').classList.remove('active');
+    editAccountId = null;
 }
+
+    async function saveEdit() {
+        const symbol = document.getElementById('editSymbol').value.trim();
+        const type = document.getElementById('editType').value;
+        const amountRaw = document.getElementById('editAmount').value.trim().replace(/,/g, '');
+        const amount = parseInt(amountRaw);
+        const target_time = document.getElementById('editTime').value;
+        const account_id = parseInt(document.getElementById('editAccount').value);
+        if (!symbol || !amountRaw || !target_time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
+        if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
+        const res = await fetch(`/api/trades/${editTradeId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, type, amount, target_time, account_id })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+            closeModal();
+        } else {
+            const err = await res.json();
+            alert('خطا در ویرایش معامله: ' + (err.error || 'مشخص نیست'));
+        }
+    }
+
+    async function deleteTrade(tradeId) {
+        if (!confirm('حذف معامله؟')) return;
+        const res = await fetch(`/api/trades/${tradeId}`, { method: 'DELETE' });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+        } else {
+            const err = await res.json();
+            alert('خطا در حذف معامله: ' + (err.error || 'مشخص نیست'));
+        }
+    }
+
+    async function updateTradeAccount(tradeId, newAccountId) {
+        // ابتدا trade مورد نظر را پیدا کنید
+        const trade = trades.find(t => t.id === tradeId);
+        if (!trade) return;
+        const res = await fetch(`/api/trades/${tradeId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: trade.symbol,
+                type: trade.type,
+                amount: trade.amount,
+                target_time: trade.target_time,
+                account_id: parseInt(newAccountId)
+            })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+        } else {
+            const err = await res.json();
+            alert('خطا در تغییر حساب: ' + (err.error || 'مشخص نیست'));
+        }
+    }
+
+    async function addTrade() {
+            const symbol = document.getElementById('tradeSymbol').value.trim();
+            const type = document.getElementById('tradeType').value;
+            const amountRaw = document.getElementById('tradeAmount').value.trim().replace(/,/g, '');
+            const amount = parseInt(amountRaw);
+            const time = document.getElementById('tradeTime').value;
+            const account_id = parseInt(document.getElementById('tradeAccount').value);
+            if (!symbol || !amountRaw || !time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
+            if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
+            if (!/^\d{2}:\d{2}:\d{2}$/.test(time)) { alert('فرمت ساعت باید HH:MM:SS باشد'); return; }
+            const res = await fetch('/api/trades', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol, type, amount, target_time: time, account_id })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                trades = data.trades;
+                renderTrades();
+                document.getElementById('tradeSymbol').value = '';
+                document.getElementById('tradeAmount').value = '';
+                document.getElementById('tradeTime').value = getDefaultTime();
+            } else alert('خطا در افزودن معامله');
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.remove('active');
+        editTradeId = null;
+    }
+
+    function renderTrades() {
+        const container = document.getElementById('tradesTable');
+        if (!trades.length) {
+            container.innerHTML = '<div class="text-center text-gray-400 py-8">هیچ معامله‌ای تعریف نشده است</div>';
+            return;
+        }
+        let html = '';
+        trades.forEach(trade => {
+            const isBuy = trade.type === 'خرید';
+            const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
+            const badgeIcon = isBuy ? '▲ خرید' : '▼ فروش';
+            const amountFormatted = formatAmount(trade.amount);
+            html += `
+                <div class="trade-item">
+                    <div class="font-bold text-white" style="min-width:80px;">${escapeHtml(trade.symbol)}</div>
+                    <div><span class="trade-badge ${badgeClass}">${badgeIcon}</span></div>
+                    <div class="text-gray-200">${amountFormatted}</div>
+                    <div style="display:flex; align-items:center; gap:0.3rem;">
+                        <span class="font-mono text-gray-200">${escapeHtml(trade.target_time)}</span>
+                        <button onclick="setTimeOffset(${trade.id}, 1)" class="btn btn-primary btn-sm">+1</button>
+                        <button onclick="setTimeOffset(${trade.id}, 5)" class="btn btn-primary btn-sm">+5</button>
+                        <button onclick="setTimeOffset(${trade.id}, 10)" class="btn btn-primary btn-sm">+10</button>
+                    </div>
+                    <div>
+                        <select onchange="updateTradeAccount(${trade.id}, this.value)" style="width:auto; padding:0.2rem 0.5rem;">
+                            ${accounts.map(acc =>
+                                `<option value="${acc.id}" ${trade.account_id === acc.id ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:0.3rem;">
+                        <button onclick="openEditModal(${trade.id})" class="btn btn-primary btn-sm">✏️</button>
+                        <button onclick="deleteTrade(${trade.id})" class="btn btn-danger btn-sm">🗑</button>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+        // ===== تنظیم سریع زمان =====
+    async function setTimeOffset(tradeId, offsetMinutes) {
+        const trade = trades.find(t => t.id === tradeId);
+        if (!trade) return;
+
+        const now = new Date();
+        let minutes = now.getMinutes();
+        if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
+            minutes += 1;
+        }
+        let hours = now.getHours();
+        if (minutes >= 60) {
+            minutes -= 60;
+            hours += 1;
+        }
+        if (hours >= 24) hours -= 24;
+
+        minutes += offsetMinutes;
+        const extraHours = Math.floor(minutes / 60);
+        minutes = minutes % 60;
+        hours = (hours + extraHours) % 24;
+
+        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+
+        const res = await fetch(`/api/trades/${tradeId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                symbol: trade.symbol,
+                type: trade.type,
+                amount: trade.amount,
+                target_time: timeStr,
+                account_id: trade.account_id
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            trades = data.trades;
+            renderTrades();
+        } else {
+            const err = await res.json();
+            alert('خطا در به‌روزرسانی زمان: ' + (err.error || 'مشخص نیست'));
+        }
+    }
+    function updateAccountDropdowns() {
+        const addSelect = document.getElementById('tradeAccount');
+        if (addSelect) {
+            addSelect.innerHTML = accounts.map(acc =>
+                `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`
+            ).join('');
+        }
+        // همچنین برای مودال ویرایش
+        const editSelect = document.getElementById('editAccount');
+        if (editSelect) {
+            editSelect.innerHTML = accounts.map(acc =>
+                `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`
+            ).join('');
+        }
+    }
     function getDefaultTime() {
         const now = new Date();
         now.setMinutes(now.getMinutes() + 1);
