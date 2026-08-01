@@ -639,43 +639,82 @@
     // ===== مدیریت معاملات =====
     let editIndex = null;
 
-    function openEditModal(trade, idx) {
-        editIndex = idx;
-        document.getElementById('editSymbol').value = trade.symbol;
-        document.getElementById('editType').value = trade.type;
-        document.getElementById('editAmount').value = formatAmount(trade.amount);
-        document.getElementById('editTime').value = trade.target_time;
-        const select = document.getElementById('editAccount');
-        select.innerHTML = accounts.map((acc, aidx) => `<option value="${aidx}" ${trade.account_id === aidx ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`).join('');
-        document.getElementById('editModal').classList.add('active');
-    }
 
-    async function saveEdit() {
-        const symbol = document.getElementById('editSymbol').value.trim();
-        const type = document.getElementById('editType').value;
-        const amountRaw = document.getElementById('editAmount').value.trim().replace(/,/g, '');
-        const amount = parseInt(amountRaw);
-        const target_time = document.getElementById('editTime').value;
-        const account_id = parseInt(document.getElementById('editAccount').value);
-        if (!symbol || !amountRaw || !target_time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
-        if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
-        const res = await fetch(`/api/trades/${editIndex}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol, type, amount, target_time, account_id })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            trades = data.trades;
-            renderTrades();
-            closeModal();
-        } else alert('خطا در ویرایش معامله');
-    }
+function openEditModal(trade, tradeId) {
+    editTradeId = tradeId;
+    document.getElementById('editSymbol').value = trade.symbol;
+    document.getElementById('editType').value = trade.type;
+    document.getElementById('editAmount').value = formatAmount(trade.amount);
+    document.getElementById('editTime').value = trade.target_time;
+    const select = document.getElementById('editAccount');
+    select.innerHTML = accounts.map(acc =>
+        `<option value="${acc.id}" ${trade.account_id === acc.id ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`
+    ).join('');
+    document.getElementById('editModal').classList.add('active');
+}
 
-    function closeModal() {
-        document.getElementById('editModal').classList.remove('active');
-        editIndex = null;
+async function saveEdit() {
+    const symbol = document.getElementById('editSymbol').value.trim();
+    const type = document.getElementById('editType').value;
+    const amountRaw = document.getElementById('editAmount').value.trim().replace(/,/g, '');
+    const amount = parseInt(amountRaw);
+    const target_time = document.getElementById('editTime').value;
+    const account_id = parseInt(document.getElementById('editAccount').value);
+    if (!symbol || !amountRaw || !target_time) { alert('لطفاً تمام فیلدها را پر کنید'); return; }
+    if (isNaN(amount) || amount <= 0) { alert('مبلغ/تعداد باید عدد مثبت باشد'); return; }
+    const res = await fetch(`/api/trades/${editTradeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol, type, amount, target_time, account_id })
+    });
+    if (res.ok) {
+        const data = await res.json();
+        trades = data.trades;
+        renderTrades();
+        closeModal();
+    } else {
+        const err = await res.json();
+        alert('خطا در ویرایش معامله: ' + (err.error || 'مشخص نیست'));
     }
+}
+
+async function deleteTrade(tradeId) {
+    if (!confirm('حذف معامله؟')) return;
+    const res = await fetch(`/api/trades/${tradeId}`, { method: 'DELETE' });
+    if (res.ok) {
+        const data = await res.json();
+        trades = data.trades;
+        renderTrades();
+    } else {
+        const err = await res.json();
+        alert('خطا در حذف معامله: ' + (err.error || 'مشخص نیست'));
+    }
+}
+
+async function updateTradeAccount(tradeId, newAccountId) {
+    // ابتدا trade مورد نظر را پیدا کنید
+    const trade = trades.find(t => t.id === tradeId);
+    if (!trade) return;
+    const res = await fetch(`/api/trades/${tradeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            symbol: trade.symbol,
+            type: trade.type,
+            amount: trade.amount,
+            target_time: trade.target_time,
+            account_id: parseInt(newAccountId)
+        })
+    });
+    if (res.ok) {
+        const data = await res.json();
+        trades = data.trades;
+        renderTrades();
+    } else {
+        const err = await res.json();
+        alert('خطا در تغییر حساب: ' + (err.error || 'مشخص نیست'));
+    }
+}
 
     async function addTrade() {
         const symbol = document.getElementById('tradeSymbol').value.trim();
@@ -702,126 +741,110 @@
         } else alert('خطا در افزودن معامله');
     }
 
-    async function deleteTrade(idx) {
-        if (!confirm('حذف معامله؟')) return;
-        const res = await fetch(`/api/trades/${idx}`, { method: 'DELETE' });
-        if (res.ok) {
-            const data = await res.json();
-            trades = data.trades;
-            renderTrades();
-        } else alert('خطا در حذف معامله');
-    }
+function closeModal() {
+    document.getElementById('editModal').classList.remove('active');
+    editTradeId = null;
+}
 
-    async function updateTradeAccount(tradeIdx, newAccountId) {
-        const trade = trades[tradeIdx];
-        const res = await fetch(`/api/trades/${tradeIdx}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                symbol: trade.symbol,
-                type: trade.type,
-                amount: trade.amount,
-                target_time: trade.target_time,
-                account_id: parseInt(newAccountId)
-            })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            trades = data.trades;
-            renderTrades();
-        }
+function renderTrades() {
+    const container = document.getElementById('tradesTable');
+    if (!trades.length) {
+        container.innerHTML = '<div class="text-center text-gray-400 py-8">هیچ معامله‌ای تعریف نشده است</div>';
+        return;
     }
-
-    function renderTrades() {
-        const container = document.getElementById('tradesTable');
-        if (!trades.length) {
-            container.innerHTML = '<div class="text-center text-gray-400 py-8">هیچ معامله‌ای تعریف نشده است</div>';
-            return;
-        }
-        let html = '';
-        trades.forEach((trade, idx) => {
-            const isBuy = trade.type === 'خرید';
-            const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
-            const badgeIcon = isBuy ? '▲ خرید' : '▼ فروش';
-            const amountFormatted = formatAmount(trade.amount);
-            html += `
-                <div class="trade-item">
-                    <div class="font-bold text-white" style="min-width:80px;">${escapeHtml(trade.symbol)}</div>
-                    <div><span class="trade-badge ${badgeClass}">${badgeIcon}</span></div>
-                    <div class="text-gray-200">${amountFormatted}</div>
-                    <div style="display:flex; align-items:center; gap:0.3rem;">
-                        <span class="font-mono text-gray-200">${escapeHtml(trade.target_time)}</span>
-                        <button onclick="setTimeOffset(${idx}, 1)" class="btn btn-primary btn-sm">+1</button>
-                        <button onclick="setTimeOffset(${idx}, 5)" class="btn btn-primary btn-sm">+5</button>
-                        <button onclick="setTimeOffset(${idx}, 10)" class="btn btn-primary btn-sm">+10</button>
-                    </div>
-                    <div>
-                        <select onchange="updateTradeAccount(${idx}, this.value)" style="width:auto; padding:0.2rem 0.5rem;">
-                            ${accounts.map((acc, aidx) => `<option value="${aidx}" ${trade.account_id === aidx ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div style="display:flex; gap:0.3rem;">
-                        <button onclick="openEditModal(trades[${idx}], ${idx})" class="btn btn-primary btn-sm">✏️</button>
-                        <button onclick="deleteTrade(${idx})" class="btn btn-danger btn-sm">🗑</button>
-                    </div>
+    let html = '';
+    trades.forEach(trade => {
+        const isBuy = trade.type === 'خرید';
+        const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
+        const badgeIcon = isBuy ? '▲ خرید' : '▼ فروش';
+        const amountFormatted = formatAmount(trade.amount);
+        html += `
+            <div class="trade-item">
+                <div class="font-bold text-white" style="min-width:80px;">${escapeHtml(trade.symbol)}</div>
+                <div><span class="trade-badge ${badgeClass}">${badgeIcon}</span></div>
+                <div class="text-gray-200">${amountFormatted}</div>
+                <div style="display:flex; align-items:center; gap:0.3rem;">
+                    <span class="font-mono text-gray-200">${escapeHtml(trade.target_time)}</span>
+                    <button onclick="setTimeOffset(${trade.id}, 1)" class="btn btn-primary btn-sm">+1</button>
+                    <button onclick="setTimeOffset(${trade.id}, 5)" class="btn btn-primary btn-sm">+5</button>
+                    <button onclick="setTimeOffset(${trade.id}, 10)" class="btn btn-primary btn-sm">+10</button>
                 </div>
-            `;
-        });
-        container.innerHTML = html;
-    }
-
+                <div>
+                    <select onchange="updateTradeAccount(${trade.id}, this.value)" style="width:auto; padding:0.2rem 0.5rem;">
+                        ${accounts.map(acc =>
+                            `<option value="${acc.id}" ${trade.account_id === acc.id ? 'selected' : ''}>${escapeHtml(acc.name)}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+                <div style="display:flex; gap:0.3rem;">
+                    <button onclick="openEditModal(trade, ${trade.id})" class="btn btn-primary btn-sm">✏️</button>
+                    <button onclick="deleteTrade(${trade.id})" class="btn btn-danger btn-sm">🗑</button>
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
     // ===== تنظیم سریع زمان =====
-    async function setTimeOffset(index, offsetMinutes) {
-        const now = new Date();
-        let minutes = now.getMinutes();
-        if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
-            minutes += 1;
-        }
-        let hours = now.getHours();
-        if (minutes >= 60) {
-            minutes -= 60;
-            hours += 1;
-        }
-        if (hours >= 24) hours -= 24;
+async function setTimeOffset(tradeId, offsetMinutes) {
+    const trade = trades.find(t => t.id === tradeId);
+    if (!trade) return;
 
-        minutes += offsetMinutes;
-        const extraHours = Math.floor(minutes / 60);
-        minutes = minutes % 60;
-        hours = (hours + extraHours) % 24;
-
-        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-
-        const trade = trades[index];
-        if (!trade) return;
-
-        const res = await fetch(`/api/trades/${index}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                symbol: trade.symbol,
-                type: trade.type,
-                amount: trade.amount,
-                target_time: timeStr,
-                account_id: trade.account_id
-            })
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            trades = data.trades;
-            renderTrades();
-        } else {
-            alert('❌ خطا در به‌روزرسانی زمان');
-        }
+    const now = new Date();
+    let minutes = now.getMinutes();
+    if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
+        minutes += 1;
     }
-
-    function updateAccountDropdowns() {
-        const addSelect = document.getElementById('tradeAccount');
-        if (addSelect) {
-            addSelect.innerHTML = accounts.map((acc, idx) => `<option value="${idx}">${escapeHtml(acc.name)}</option>`).join('');
-        }
+    let hours = now.getHours();
+    if (minutes >= 60) {
+        minutes -= 60;
+        hours += 1;
     }
+    if (hours >= 24) hours -= 24;
 
+    minutes += offsetMinutes;
+    const extraHours = Math.floor(minutes / 60);
+    minutes = minutes % 60;
+    hours = (hours + extraHours) % 24;
+
+    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+
+    const res = await fetch(`/api/trades/${tradeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            symbol: trade.symbol,
+            type: trade.type,
+            amount: trade.amount,
+            target_time: timeStr,
+            account_id: trade.account_id
+        })
+    });
+
+    if (res.ok) {
+        const data = await res.json();
+        trades = data.trades;
+        renderTrades();
+    } else {
+        const err = await res.json();
+        alert('خطا در به‌روزرسانی زمان: ' + (err.error || 'مشخص نیست'));
+    }
+}
+function updateAccountDropdowns() {
+    const addSelect = document.getElementById('tradeAccount');
+    if (addSelect) {
+        addSelect.innerHTML = accounts.map(acc =>
+            `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`
+        ).join('');
+    }
+    // همچنین برای مودال ویرایش
+    const editSelect = document.getElementById('editAccount');
+    if (editSelect) {
+        editSelect.innerHTML = accounts.map(acc =>
+            `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`
+        ).join('');
+    }
+}
     function getDefaultTime() {
         const now = new Date();
         now.setMinutes(now.getMinutes() + 1);
