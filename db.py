@@ -48,6 +48,20 @@ class DatabaseManager:
                 );
             """)
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS portfolio_holdings (
+                    id SERIAL PRIMARY KEY,
+                    account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+                    symbol VARCHAR(50) NOT NULL,
+                    quantity VARCHAR(50),
+                    current_value VARCHAR(50),
+                    last_price VARCHAR(50),
+                    last_price_percent VARCHAR(20),
+                    today_profit_percent VARCHAR(20),
+                    today_profit_value VARCHAR(50),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            cur.execute("""
                 INSERT INTO settings (key, value) VALUES 
                 ('precision_ms', '20'),
                 ('click_offset_ms', '0')
@@ -143,3 +157,39 @@ class DatabaseManager:
                 (key, value)
             )
             conn.commit()
+
+    # ──────────── Portfolio ────────────
+    def replace_portfolio_holdings(self, account_id, holdings):
+        """پرتفوی قبلی این حساب را پاک کرده و مقادیر جدید را درج می‌کند"""
+        conn = self.get_connection()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM portfolio_holdings WHERE account_id = %s;", (account_id,))
+            for h in holdings:
+                cur.execute(
+                    """INSERT INTO portfolio_holdings
+                       (account_id, symbol, quantity, current_value, last_price,
+                        last_price_percent, today_profit_percent, today_profit_value)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""",
+                    (
+                        account_id,
+                        h.get("symbol"),
+                        h.get("quantity"),
+                        h.get("current_value"),
+                        h.get("last_price"),
+                        h.get("last_price_percent"),
+                        h.get("today_profit_percent"),
+                        h.get("today_profit_value"),
+                    )
+                )
+            conn.commit()
+
+    def get_portfolio_holdings(self):
+        conn = self.get_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT p.*, a.name AS account_name
+                FROM portfolio_holdings p
+                JOIN accounts a ON a.id = p.account_id
+                ORDER BY a.name, p.symbol;
+            """)
+            return [dict(row) for row in cur.fetchall()]

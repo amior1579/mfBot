@@ -52,6 +52,13 @@
             color: #e2e8f0;
             margin-bottom: 1rem;
         }
+        .card-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
 
         /* ===== Grid ===== */
         .grid-2 {
@@ -181,6 +188,12 @@
             width: 100%;
             justify-content: center;
         }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
 
         /* ===== Inputs ===== */
         input, select {
@@ -226,18 +239,19 @@
         .gap-4 { gap: 1rem; }
 
         /* ===== Tables / Lists ===== */
-        .account-item, .trade-item {
+        .account-item, .trade-item, .portfolio-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0.75rem;
             border-radius: 0.5rem;
             border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+            gap: 0.5rem;
         }
-        .account-item:nth-child(even), .trade-item:nth-child(even) {
+        .account-item:nth-child(even), .trade-item:nth-child(even), .portfolio-item:nth-child(even) {
             background: rgba(15, 23, 42, 0.3);
         }
-        .account-item:hover, .trade-item:hover {
+        .account-item:hover, .trade-item:hover, .portfolio-item:hover {
             background: rgba(51, 65, 85, 0.4);
         }
         .trade-badge {
@@ -254,6 +268,28 @@
             background: rgba(239, 68, 68, 0.4);
             color: #fca5a5;
         }
+        .portfolio-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.4);
+            gap: 0.5rem;
+        }
+        .portfolio-col {
+            flex: 1;
+            min-width: 90px;
+            text-align: center;
+        }
+        .portfolio-col.symbol-col {
+            flex: 1.2;
+            text-align: right;
+            font-weight: 700;
+        }
+        .text-profit { color: #86efac; }
+        .text-loss { color: #fca5a5; }
 
         /* ===== Log & Notification ===== */
         .log-container, .notif-container {
@@ -265,6 +301,11 @@
             border-radius: 0.75rem;
             padding: 0.5rem;
             border: 1px solid #1e293b;
+        }
+        .portfolio-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 0.75rem;
         }
         .log-entry, .notif-entry {
             padding: 4px 8px;
@@ -319,6 +360,7 @@
         .hidden { display: none; }
         .overflow-auto { overflow: auto; }
         .min-w-800 { min-width: 800px; }
+        .min-w-700 { min-width: 700px; }
         .max-h-60 { max-height: 240px; overflow-y: auto; }
         .space-y-2 > * + * { margin-top: 0.5rem; }
         .space-y-3 > * + * { margin-top: 0.75rem; }
@@ -394,6 +436,27 @@
     <div class="card mb-6">
         <h2 class="card-title">📋 لیست معاملات</h2>
         <div class="overflow-auto min-w-800" id="tradesTable"></div>
+    </div>
+
+    <!-- ===== ROW 2.5: Portfolio ===== -->
+    <div class="card mb-6">
+        <div class="card-title-row">
+            <h2 class="card-title" style="margin-bottom:0;">💼 پرتفوی صرافی</h2>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span id="portfolioUpdatedAt" class="text-xs text-gray"></span>
+                <button id="syncPortfolioBtn" onclick="syncPortfolio()" class="btn btn-primary btn-sm">🔄 همگام‌سازی پرتفوی</button>
+            </div>
+        </div>
+        <div class="overflow-auto min-w-700">
+            <div class="portfolio-header-row">
+                <div class="portfolio-col symbol-col">نماد / حساب</div>
+                <div class="portfolio-col">تعداد</div>
+                <div class="portfolio-col">ارزش فعلی</div>
+                <div class="portfolio-col">آخرین قیمت</div>
+                <div class="portfolio-col">سود/زیان امروز</div>
+            </div>
+            <div id="portfolioContainer" class="portfolio-container"></div>
+        </div>
     </div>
 
     <!-- ===== ROW 3: Settings ===== -->
@@ -473,6 +536,8 @@
     let trades = [];
     let logInterval = null;
     let notifInterval = null;
+    let portfolioInterval = null;
+    let portfolioStatusInterval = null;
     let editTradeId = null;
     let editIndex = null;
     let editAccountId = null;
@@ -603,6 +668,85 @@
             }
         }).join('');
         container.scrollTop = container.scrollHeight;
+    }
+
+    // ===== پرتفوی =====
+    async function loadPortfolio() {
+        try {
+            const res = await fetch('/api/portfolio');
+            const data = await res.json();
+            renderPortfolio(data);
+        } catch (e) {
+            console.error('خطا در دریافت پرتفوی', e);
+        }
+    }
+
+    function renderPortfolio(holdings) {
+        const container = document.getElementById('portfolioContainer');
+        if (!container) return;
+        if (!holdings || holdings.length === 0) {
+            container.innerHTML = '<div class="text-center text-gray-400 py-4">هنوز پرتفوی همگام‌سازی نشده است. روی «همگام‌سازی پرتفوی» بزنید.</div>';
+            return;
+        }
+        let html = '';
+        let lastUpdated = null;
+        holdings.forEach(h => {
+            const profitStr = (h.today_profit_percent || '') + ' ' + (h.today_profit_value || '');
+            const isLoss = (h.today_profit_percent || '').includes('-') || (h.today_profit_value || '').includes('-');
+            const profitClass = isLoss ? 'text-loss' : 'text-profit';
+            if (h.updated_at) lastUpdated = h.updated_at;
+            html += `
+                <div class="portfolio-item">
+                    <div class="portfolio-col symbol-col">
+                        <div>${escapeHtml(h.symbol)}</div>
+                        <div class="text-xs text-gray">${escapeHtml(h.account_name || '')}</div>
+                    </div>
+                    <div class="portfolio-col">${escapeHtml(h.quantity || '-')}</div>
+                    <div class="portfolio-col font-mono">${escapeHtml(h.current_value || '-')}</div>
+                    <div class="portfolio-col font-mono">${escapeHtml(h.last_price || '-')}</div>
+                    <div class="portfolio-col font-mono ${profitClass}">${escapeHtml(profitStr.trim() || '-')}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        const updatedEl = document.getElementById('portfolioUpdatedAt');
+        if (updatedEl && lastUpdated) {
+            updatedEl.textContent = 'آخرین به‌روزرسانی: ' + lastUpdated;
+        }
+    }
+
+    async function syncPortfolio() {
+        const btn = document.getElementById('syncPortfolioBtn');
+        const res = await fetch('/api/portfolio/sync', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            btn.disabled = true;
+            btn.textContent = '⏳ در حال همگام‌سازی...';
+            startPortfolioStatusPolling();
+        } else {
+            alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
+        }
+    }
+
+    function startPortfolioStatusPolling() {
+        if (portfolioStatusInterval) clearInterval(portfolioStatusInterval);
+        portfolioStatusInterval = setInterval(async () => {
+            const res = await fetch('/api/portfolio/status');
+            const data = await res.json();
+            const btn = document.getElementById('syncPortfolioBtn');
+            if (!data.syncing) {
+                clearInterval(portfolioStatusInterval);
+                btn.disabled = false;
+                btn.textContent = '🔄 همگام‌سازی پرتفوی';
+                loadPortfolio();
+            }
+        }, 2000);
+    }
+
+    function startPortfolioPolling() {
+        loadPortfolio();
+        if (portfolioInterval) clearInterval(portfolioInterval);
+        portfolioInterval = setInterval(loadPortfolio, 15000);
     }
 
     // ===== مدیریت حساب‌ها =====
@@ -938,7 +1082,7 @@ function closeEditAccountModal() {
 
     function escapeHtml(str) {
         if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
+        return String(str).replace(/[&<>]/g, function(m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
@@ -1034,6 +1178,7 @@ function closeEditAccountModal() {
         document.getElementById('tradeTime').value = getDefaultTime();
         startLogPolling();
         startNotifPolling();
+        startPortfolioPolling();
         loadPrecision();
         loadOffset();
     };

@@ -3,7 +3,7 @@ import asyncio
 import threading
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-from bot_core import run_multiple_trades, log_buffer
+from bot_core import run_multiple_trades, log_buffer, run_portfolio_sync
 from db import DatabaseManager
 from dotenv import load_dotenv
 app = Flask(__name__)
@@ -17,6 +17,10 @@ db = DatabaseManager()  # از متغیر محیطی DATABASE_URL استفاده
 bot_running = False
 current_stop_event = None
 bot_lock = threading.Lock()
+
+# ──────────── وضعیت همگام‌سازی پرتفوی ────────────
+portfolio_syncing = False
+portfolio_lock = threading.Lock()
 
 # ===================== دریافت لاگ‌ها =====================
 @app.route("/api/logs")
@@ -237,6 +241,47 @@ def stop_bot():
             current_stop_event.set()
         bot_running = False
         return jsonify({"status": "درخواست توقف ربات ارسال شد."})
+
+# ===================== پرتفوی =====================
+@app.route("/api/portfolio", methods=["GET"])
+def get_portfolio():
+    return jsonify(db.get_portfolio_holdings())
+
+@app.route("/api/portfolio/status", methods=["GET"])
+def portfolio_status():
+    return jsonify({"syncing": portfolio_syncing})
+
+@app.route("/api/portfolio/sync", methods=["POST"])
+def sync_portfolio():
+    global portfolio_syncing
+    with portfolio_lock:
+        if portfolio_syncing:
+            return jsonify({"error": "همگام‌سازی پرتفوی از قبل در حال اجراست"}), 400
+        if bot_running:
+            return jsonify({"error": "ربات در حال اجرای معاملات است، ابتدا آن را متوقف کنید"}), 400
+        accounts = db.get_accounts()
+        if not accounts:
+            return jsonify({"error": "حداقل یک حساب تعریف کنید"}), 400
+        portfolio_syncing = True
+
+    def run_async():
+        global portfolio_syncing
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            results = loop.run_until_complete(run_portfolio_sync(accounts))
+            for account_id, holdings in results.items():
+                db.replace_portfolio_holdings(account_id, holdings)
+        except Exception as e:
+            print(f"خطا در همگام‌سازی پرتفوی: {e}")
+        finally:
+            loop.close()
+            with portfolio_lock:
+                portfolio_syncing = False
+
+    thread = threading.Thread(target=run_async)
+    thread.start()
+    return jsonify({"status": "همگام‌سازی پرتفوی آغاز شد"})
 
 # ===================== دریافت کل تنظیمات (برای نمایش) =====================
 @app.route("/api/settings", methods=["GET"])

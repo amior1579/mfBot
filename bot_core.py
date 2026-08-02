@@ -14,6 +14,10 @@ TIMEOUT_MED = 10000    # ms
 TIMEOUT_LONG = 20000   # ms
 BLOCKED_RESOURCES = re.compile(r"\.(png|jpe?g|webp|svg|gif|ico|ttf|woff2?|eot|mp4|mp3|pdf)(\?|$)", re.I)
 
+# ──────────── Portfolio Selectors ────────────
+PORTFOLIO_MENU_SELECTOR = "[data-cy='portfolio-menu-icon']"
+PORTFOLIO_GRID_SELECTOR = "[data-cy='portfolio_grid']"
+
 # ──────────── Log Buffer ────────────
 log_buffer = []
 MAX_LOG_ENTRIES = 500
@@ -347,6 +351,142 @@ async def wait_and_submit_at_time(page, order_type: str, target_time_str: str, p
     await submit.wait_for(state="visible", timeout=TIMEOUT_SHORT)
     await submit.click()
     log("✅ سفارش ارسال شد")
+
+# ──────────── Navigate To Portfolio ────────────
+async def navigate_to_portfolio(page) -> None:
+    log("📊 رفتن به بخش پرتفوی...")
+    btn = page.locator(PORTFOLIO_MENU_SELECTOR)
+    await btn.wait_for(state="visible", timeout=TIMEOUT_MED)
+    await btn.click()
+    log("✓ روی منوی پرتفوی کلیک شد")
+
+    try:
+        await page.wait_for_selector(f"{PORTFOLIO_GRID_SELECTOR} div[role='row'][row-id]", timeout=TIMEOUT_LONG)
+    except PWTimeout:
+        log("⚠️ ردیفی در پرتفوی پیدا نشد (احتمالاً پرتفوی خالی است)")
+    await asyncio.sleep(1)
+    log("✅ صفحه پرتفوی بارگذاری شد")
+
+# ──────────── Extract Portfolio ────────────
+async def extract_portfolio(page) -> list[dict]:
+    log("📥 استخراج اطلاعات پرتفوی...")
+    rows = page.locator(f"{PORTFOLIO_GRID_SELECTOR} div[role='row'][row-id]")
+    count = await rows.count()
+    results = []
+
+    for i in range(count):
+        row = rows.nth(i)
+        try:
+            symbol_el = row.locator("[data-cy='renderer-symbol-name']").first
+            if await symbol_el.count() == 0:
+                continue
+            symbol = (await symbol_el.inner_text()).strip()
+            if not symbol:
+                continue
+
+            asset_el = row.locator("[data-cy='portfolio-symbol-asset-renderer-asset']").first
+            quantity = (await asset_el.inner_text()).strip() if await asset_el.count() else ""
+
+            current_value = ""
+            current_value_cell = row.locator("[col-id='currentValue']")
+            if await current_value_cell.count():
+                v = current_value_cell.locator("div.text-start").first
+                if await v.count():
+                    current_value = (await v.inner_text()).strip()
+
+            last_price, last_price_percent = "", ""
+            last_price_cell = row.locator("[col-id='lastTradedPrice']")
+            if await last_price_cell.count():
+                p = last_price_cell.locator("div.text-end").first
+                if await p.count():
+                    last_price_percent = (await p.inner_text()).strip()
+                v = last_price_cell.locator("div.text-start").first
+                if await v.count():
+                    last_price = (await v.inner_text()).strip()
+
+            today_profit_percent, today_profit_value = "", ""
+            today_profit_cell = row.locator("[col-id='todayProfitAmount']")
+            if await today_profit_cell.count():
+                p = today_profit_cell.locator("div.text-end").first
+                if await p.count():
+                    today_profit_percent = (await p.inner_text()).strip()
+                v = today_profit_cell.locator("div.text-start").first
+                if await v.count():
+                    today_profit_value = (await v.inner_text()).strip()
+
+            results.append({
+                "symbol": symbol,
+                "quantity": quantity,
+                "current_value": current_value,
+                "last_price": last_price,
+                "last_price_percent": last_price_percent,
+                "today_profit_percent": today_profit_percent,
+                "today_profit_value": today_profit_value,
+            })
+        except Exception as e:
+            log(f"⚠️ خطا در استخراج ردیف پرتفوی #{i}: {e}")
+
+    log(f"✅ {len(results)} سهم از پرتفوی استخراج شد")
+    return results
+
+# ──────────── Sync Portfolio For One Account ────────────
+async def sync_account_portfolio(username: str, password: str, account_name: str) -> list[dict]:
+    token_account = _log_account_ctx.set(account_name)
+    holdings: list[dict] = []
+    try:
+        log(f"🚀 شروع همگام‌سازی پرتفوی (حساب: {account_name})")
+        async with async_playwright() as pw:
+            headless_mode = os.getenv("HEADLESS", "false").lower() == "true"
+            browser = await pw.firefox.launch(
+                headless=headless_mode,
+                args=[
+                    "--start-maximized",
+                    "--disable-gpu",
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-background-networking",
+                    "--disable-default-apps",
+                    "--disable-extensions",
+                    "--disable-sync",
+                    "--no-first-run",
+                ],
+            )
+            context = await browser.new_context(
+                viewport=None,
+                ignore_https_errors=True,
+                java_script_enabled=True,
+            )
+            await context.route("**/*", _block_route)
+            page = await context.new_page()
+            try:
+                await login_and_redirect(page, username, password)
+                await navigate_to_portfolio(page)
+                holdings = await extract_portfolio(page)
+            except Exception as e:
+                log(f"❌ خطا در همگام‌سازی پرتفوی ({account_name}): {e}")
+            finally:
+                await browser.close()
+    finally:
+        _log_account_ctx.reset(token_account)
+    return holdings
+
+# ──────────── Sync Portfolio For All Accounts ────────────
+async def run_portfolio_sync(accounts: list) -> dict:
+    """برای هر حساب پرتفوی را استخراج می‌کند و دیکشنری {account_id: holdings} برمی‌گرداند"""
+    tasks = [
+        sync_account_portfolio(acc["username"], acc["password"], acc.get("name", f"حساب {i+1}"))
+        for i, acc in enumerate(accounts)
+    ]
+    holdings_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = {}
+    for acc, holdings in zip(accounts, holdings_list):
+        if isinstance(holdings, Exception):
+            log(f"❌ خطا در دریافت پرتفوی حساب {acc.get('name')}: {holdings}")
+            holdings = []
+        results[acc["id"]] = holdings
+    return results
 
 # ──────────── Single Trade Runner ────────────
 async def run_single_trade(
