@@ -1215,6 +1215,171 @@
             flex-wrap: wrap;
         }
 
+        /* ===== Sticky Header ===== */
+        .sticky-header {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 90;
+            padding: calc(0.6rem + var(--safe-top)) 1.75rem 0.6rem;
+            background: linear-gradient(180deg, rgba(5, 7, 15, 0.85) 0%, rgba(5, 7, 15, 0.7) 100%);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            transform: translateY(-110%);
+            opacity: 0;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .sticky-header.visible {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .sticky-header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: nowrap;
+        }
+
+        .sticky-left,
+        .sticky-right {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-shrink: 0;
+        }
+
+        /* دکمه‌های هدر چسبان - نسخه جمع‌وجور */
+        .sticky-header .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            min-height: 34px;
+        }
+
+        .sticky-header .btn-lg {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            min-height: 34px;
+        }
+
+        .sticky-header .status-badge {
+            padding: 0.45rem 0.9rem;
+            font-size: 0.75rem;
+            gap: 0.4rem;
+        }
+
+        /* مینی تایمر برای هدر */
+        .sticky-countdown {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent-buy);
+            direction: ltr;
+            letter-spacing: 0.03em;
+            text-shadow: 0 0 10px var(--accent-buy-glow);
+            white-space: nowrap;
+        }
+
+        .sticky-countdown.warning {
+            color: var(--accent-sell);
+            border-color: rgba(239, 68, 68, 0.3);
+            text-shadow: 0 0 10px var(--accent-sell-glow);
+        }
+
+        .sticky-countdown .lucide {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ساعت مینی */
+        .sticky-clock {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.45rem 0.75rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            direction: ltr;
+            white-space: nowrap;
+        }
+
+        .sticky-clock .lucide {
+            width: 13px;
+            height: 13px;
+            color: var(--accent-buy);
+        }
+
+        .sticky-clock .clock-seconds {
+            color: var(--accent-buy);
+        }
+
+        /* جداکننده عمودی */
+        .sticky-divider {
+            width: 1px;
+            height: 20px;
+            background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+            margin: 0 0.2rem;
+        }
+
+        /* ===== ریسپانسیو برای هدر چسبان ===== */
+        @media (max-width: 900px) {
+            .sticky-header { padding: calc(0.5rem + var(--safe-top)) 1rem 0.5rem; }
+            .sticky-header-inner { gap: 0.5rem; }
+            .sticky-left, .sticky-right { gap: 0.4rem; }
+            .sticky-header .btn { padding: 0.45rem 0.85rem; font-size: 0.75rem; min-height: 32px; }
+            .sticky-countdown { font-size: 0.8rem; padding: 0.4rem 0.7rem; }
+            .sticky-clock { font-size: 0.8rem; padding: 0.4rem 0.65rem; }
+            .sticky-header .status-badge { padding: 0.4rem 0.75rem; font-size: 0.7rem; }
+        }
+
+        @media (max-width: 640px) {
+            .sticky-header { padding: calc(0.45rem + var(--safe-top)) 0.75rem 0.45rem; }
+            .sticky-header-inner { gap: 0.4rem; }
+            .sticky-left, .sticky-right { gap: 0.3rem; }
+            .sticky-header .btn span { display: none; }
+            .sticky-header .btn {
+                padding: 0.5rem;
+                min-width: 36px;
+                justify-content: center;
+            }
+            .sticky-header .btn .lucide { width: 16px; height: 16px; }
+            .sticky-header .status-badge { padding: 0.4rem 0.7rem; }
+            .sticky-header .status-badge span:last-child { display: none; }
+            .sticky-countdown { font-size: 0.75rem; padding: 0.38rem 0.55rem; gap: 0.3rem; }
+            .sticky-clock { font-size: 0.75rem; padding: 0.38rem 0.55rem; gap: 0.3rem; }
+            .sticky-divider { height: 18px; margin: 0 0.1rem; }
+        }
+
+        @media (max-width: 420px) {
+            .sticky-header { padding: calc(0.4rem + var(--safe-top)) 0.5rem 0.4rem; }
+            .sticky-clock { display: none; }
+            .sticky-header-inner { gap: 0.3rem; }
+            .sticky-countdown { font-size: 0.7rem; padding: 0.35rem 0.5rem; }
+            .sticky-header .btn { padding: 0.45rem; min-width: 34px; }
+            .sticky-header .status-badge { padding: 0.38rem 0.6rem; font-size: 0.65rem; }
+        }
+
         /* ======================================================== */
         /* ===== RESPONSIVE ===== */
         /* ======================================================== */
@@ -1530,6 +1695,39 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- Sticky Header -->
+<div class="sticky-header" id="stickyHeader">
+    <div class="sticky-header-inner">
+        <div class="sticky-right">
+            <div class="status-badge" id="stickyStatusBadge">
+                <span id="stickyStatusDot" class="status-icon"></span>
+                <span id="stickyStatusText">متوقف</span>
+            </div>
+            <div class="sticky-divider"></div>
+            <button onclick="runBot()" class="btn btn-success" title="شروع ربات">
+                <i data-lucide="play"></i>
+                <span>شروع</span>
+            </button>
+            <button onclick="resetBot()" class="btn btn-ghost" title="ریست کامل">
+                <i data-lucide="refresh-cw"></i>
+                <span>ریست</span>
+            </button>
+        </div>
+
+        <div class="sticky-left">
+            <div class="sticky-clock">
+                <i data-lucide="clock" class="icon-pulse"></i>
+                <span id="stickyClock">--:--:--</span>
+            </div>
+            <div class="sticky-divider"></div>
+            <div class="sticky-countdown" id="stickyCountdown">
+                <i data-lucide="timer"></i>
+                <span id="stickyCountdownText">--:--</span>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="container">
 
@@ -2213,23 +2411,37 @@
         refreshIcons();
     }
 
-    function updateStatus(running) {
-        const dot = document.getElementById('statusDot');
-        const text = document.getElementById('statusText');
-        const badge = document.getElementById('statusBadge');
-        if (running) {
-            dot.className = 'status-icon active';
-            text.textContent = 'در حال اجرا';
-            text.style.color = '#6ee7b7';
-            badge.classList.add('running');
-        } else {
-            dot.className = 'status-icon';
-            text.textContent = 'متوقف';
-            text.style.color = '';
-            badge.classList.remove('running');
-        }
-    }
+function updateStatus(running) {
+    // Header اصلی
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    const badge = document.getElementById('statusBadge');
 
+    // Sticky Header
+    const stickyDot = document.getElementById('stickyStatusDot');
+    const stickyText = document.getElementById('stickyStatusText');
+    const stickyBadge = document.getElementById('stickyStatusBadge');
+
+    if (running) {
+        dot.className = 'status-icon active';
+        text.textContent = 'در حال اجرا';
+        text.style.color = '#6ee7b7';
+        badge.classList.add('running');
+
+        if (stickyDot) stickyDot.className = 'status-icon active';
+        if (stickyText) { stickyText.textContent = 'در حال اجرا'; stickyText.style.color = '#6ee7b7'; }
+        if (stickyBadge) stickyBadge.classList.add('running');
+    } else {
+        dot.className = 'status-icon';
+        text.textContent = 'متوقف';
+        text.style.color = '';
+        badge.classList.remove('running');
+
+        if (stickyDot) stickyDot.className = 'status-icon';
+        if (stickyText) { stickyText.textContent = 'متوقف'; stickyText.style.color = ''; }
+        if (stickyBadge) stickyBadge.classList.remove('running');
+    }
+}
     function startLogPolling() {
         if (logInterval) clearInterval(logInterval);
         logInterval = setInterval(async () => {
@@ -3130,6 +3342,84 @@
         }
     }
 
+    // ===== Sticky Header =====
+function initStickyScroll() {
+    const header = document.getElementById('stickyHeader');
+    let lastKnownScroll = 0;
+    let ticking = false;
+
+    function onScroll(scrollY) {
+        if (scrollY > 180) {
+            header.classList.add('visible');
+        } else {
+            header.classList.remove('visible');
+        }
+    }
+
+    window.addEventListener('scroll', () => {
+        lastKnownScroll = window.scrollY;
+        if (!ticking) {
+            window.requestAnimationFrame(() => {
+                onScroll(lastKnownScroll);
+                ticking = false;
+            });
+            ticking = true;
+        }
+    }, { passive: true });
+}
+
+// آپدیت ساعت در هدر چسبان
+function updateStickyClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    const el = document.getElementById('stickyClock');
+    if (el) el.innerHTML = `${h}:${m}<span class="clock-seconds">:${s}</span>`;
+}
+
+// آپدیت countdown در هدر چسبان
+function updateStickyCountdown() {
+    const el = document.getElementById('stickyCountdownText');
+    const wrapper = document.getElementById('stickyCountdown');
+    if (!el || !wrapper) return;
+
+    if (!trades.length) {
+        el.textContent = '--:--';
+        wrapper.classList.remove('warning');
+        return;
+    }
+
+    const now = new Date();
+    let minDiff = Infinity;
+    trades.forEach(t => {
+        const [h, m, s] = t.target_time.split(':').map(Number);
+        const tradeTime = new Date();
+        tradeTime.setHours(h, m, s, 0);
+        let diff = tradeTime - now;
+        if (diff < 0) diff += 86400000;
+        if (diff < minDiff) minDiff = diff;
+    });
+
+    if (minDiff > 86400000 || minDiff < 0) {
+        el.textContent = '--:--';
+        wrapper.classList.remove('warning');
+        return;
+    }
+
+    const hours = Math.floor(minDiff / 3600000);
+    const mins = Math.floor((minDiff % 3600000) / 60000);
+    const secs = Math.floor((minDiff % 60000) / 1000);
+
+    if (minDiff < 60000) {
+        wrapper.classList.add('warning');
+        el.textContent = `00:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    } else {
+        wrapper.classList.remove('warning');
+        el.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+}
+
     // بازسازی پرتفوی هنگام تغییر اندازه صفحه (مثلاً چرخش موبایل)
     let resizeTimer;
     window.addEventListener('resize', () => {
@@ -3151,6 +3441,11 @@
         loadOffset();
         updateCountdown();
         updateStats();
+        initStickyScroll();
+        setInterval(updateStickyClock, 1000);
+        setInterval(updateStickyCountdown, 1000);
+        updateStickyClock();
+        updateStickyCountdown();
         refreshIcons();
     };
 </script>
