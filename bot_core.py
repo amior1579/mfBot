@@ -1,5 +1,5 @@
-# bot_core.py
 import asyncio
+import json
 import re
 import time
 import contextvars
@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 import os
 from dotenv import load_dotenv
+
 # ──────────── Constants ────────────
 LOGIN_URL = "https://login.emofid.com/Login"
 TRADE_URL = "https://d.easytrader.ir"
@@ -16,7 +17,6 @@ TIMEOUT_LONG = 20000   # ms
 BLOCKED_RESOURCES = re.compile(r"\.(png|jpe?g|webp|svg|gif|ico|ttf|woff2?|eot|mp4|mp3|pdf)(\?|$)", re.I)
 
 # ──────────── Firefox low-latency prefs ────────────
-# Marginal impact vs. server-side/network RTT, but free to enable.
 FAST_FIREFOX_PREFS = {
     "network.http.pipelining": True,
     "network.http.pipelining.maxrequests": 10,
@@ -32,9 +32,28 @@ FAST_FIREFOX_PREFS = {
 PORTFOLIO_MENU_SELECTOR = "[data-cy='portfolio-menu-icon']"
 PORTFOLIO_GRID_SELECTOR = "[data-cy='portfolio_grid']"
 
+# ──────────── Order Status Selectors ────────────
+ORDER_LIST_ITEM_SELECTOR = "[data-cy^='order-list-item-container-']"
+
 # ──────────── Log Buffer ────────────
 log_buffer = []
 MAX_LOG_ENTRIES = 500
+
+# ──────────── Order Status Store (در حافظه) ────────────
+order_status_store: dict = {}
+
+def clear_order_status() -> None:
+    order_status_store.clear()
+
+def get_order_status_snapshot() -> list:
+    snapshot = []
+    for account_name, data in order_status_store.items():
+        updated_at = data.get("updated_at", "")
+        for order in data.get("orders", []):
+            row = {"account": account_name, "updated_at": updated_at}
+            row.update(order)
+            snapshot.append(row)
+    return snapshot
 
 # ──────────── Context for Logging ────────────
 _log_account_ctx = contextvars.ContextVar("log_account", default="")
@@ -140,6 +159,120 @@ async def setup_notification_monitor(page, symbol: str, account_name: str) -> No
     """
     await page.evaluate(observer_script)
     log(f"✅ مانیتور نوتیفیکیشن برای {symbol} (حساب: {account_name}) راه‌اندازی شد")
+
+# ──────────── Order Status Monitor (زنده) ────────────
+_ORDER_STATUS_OBSERVER_JS = """
+(function() {
+    const accountName = __ACCOUNT_NAME__;
+    const accountId = __ACCOUNT_ID__;
+    let debounceTimer = null;
+
+    function collectOrders() {
+        const items = document.querySelectorAll('[data-cy^="order-list-item-container-"]');
+        const orders = [];
+        items.forEach(item => {
+            try {
+                const parent = item.querySelector('[data-cy="order-list-item-parent"]');
+                const classAttr = parent ? parent.className : '';
+                let orderType = 'نامشخص';
+                if (classAttr.indexOf('buy') !== -1) orderType = 'خرید';
+                else if (classAttr.indexOf('sell') !== -1) orderType = 'فروش';
+
+                let symbol = '';
+                const h6 = item.querySelector('h6');
+                if (h6) {
+                    symbol = (h6.childNodes[0] ? h6.childNodes[0].textContent : h6.textContent).trim();
+                }
+
+                const qtyEl = item.querySelector('[data-cy="order-list-item-quantity"]');
+                const quantity = qtyEl ? qtyEl.textContent.trim() : '';
+                const fillEl = (qtyEl && qtyEl.nextElementSibling) ? qtyEl.nextElementSibling : null;
+                const fillInfo = fillEl ? fillEl.textContent.trim() : '';
+
+                const priceEl = item.querySelector('.order-price');
+                const price = priceEl ? priceEl.textContent.trim() : '';
+
+                const dateEl = item.querySelector('.order-date');
+                const orderDate = dateEl ? dateEl.textContent.trim() : '';
+
+                let status = '';
+                let statusType = 'pending';
+                const dangerEl = item.querySelector('span.text-danger');
+                const successEl = item.querySelector('span.text-success');
+                const warningEl = item.querySelector('span.text-warning');
+                if (dangerEl) { status = dangerEl.textContent.trim(); statusType = 'error'; }
+                else if (successEl) { status = successEl.textContent.trim(); statusType = 'success'; }
+                else if (warningEl) { status = warningEl.textContent.trim(); statusType = 'warning'; }
+
+                orders.push({
+                    symbol: symbol,
+                    order_type: orderType,
+                    quantity: quantity,
+                    fill_info: fillInfo,
+                    price: price,
+                    order_date: orderDate,
+                    status: status,
+                    status_type: statusType
+                });
+            } catch (e) { /* رد شدن از ردیف خراب */ }
+        });
+        return orders;
+    }
+
+    function sendUpdate() {
+        try {
+            window.updateOrderStatus(accountId, accountName, JSON.stringify(collectOrders()));
+        } catch (e) {}
+    }
+
+    function scheduleUpdate() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(sendUpdate, 300);
+    }
+
+    const observer = new MutationObserver(scheduleUpdate);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    sendUpdate();
+})();
+"""
+
+async def setup_order_status_monitor(page, account_id: int, account_name: str, db=None) -> None:
+    """راه‌اندازی مانیتور زنده‌ی وضعیت سفارشات و ذخیره در دیتابیس (در صورت وجود db)"""
+    async def callback(acc_id: int, acc_name: str, orders_json: str):
+        try:
+            orders = json.loads(orders_json)
+        except Exception:
+            orders = []
+        # بروزرسانی حافظه
+        order_status_store[acc_name] = {
+            "orders": orders,
+            "updated_at": datetime.now().strftime("%H:%M:%S"),
+        }
+        # ذخیره در دیتابیس
+        if db:
+            for order in orders:
+                try:
+                    db.add_order_history(
+                        account_id=acc_id,
+                        account_name=acc_name,
+                        symbol=order.get("symbol", ""),
+                        order_type=order.get("order_type", ""),
+                        quantity=order.get("quantity", ""),
+                        fill_info=order.get("fill_info", ""),
+                        price=order.get("price", ""),
+                        order_date=order.get("order_date", ""),
+                        status=order.get("status", ""),
+                        status_type=order.get("status_type", "pending")
+                    )
+                except Exception as e:
+                    log(f"⚠️ خطا در ذخیره تاریخچه سفارش: {e}")
+
+    await page.expose_function("updateOrderStatus", callback)
+    script = (_ORDER_STATUS_OBSERVER_JS
+              .replace("__ACCOUNT_NAME__", json.dumps(account_name))
+              .replace("__ACCOUNT_ID__", str(account_id)))
+    await page.evaluate(script)
+    log(f"✅ مانیتور وضعیت سفارشات برای حساب «{account_name}» راه‌اندازی شد")
 
 # ──────────── Block Resources ────────────
 async def _block_route(route):
@@ -332,7 +465,7 @@ async def fill_order_form(page, order_type: str, invest_amount: int | None, quan
     log(f"✅ فرم سفارش پر شد: قیمت={price:,}  تعداد={qty}")
     return price, qty
 
-# ──────────── JS click dispatch (works on Firefox; Playwright CDP does not) ────────────
+# ──────────── JS click dispatch ────────────
 _JS_DISPATCH_CLICK = """([sel, fallbackText]) => {
     let btn = document.querySelector(sel);
     if (!btn && fallbackText) {
@@ -354,8 +487,6 @@ async def wait_and_submit_at_time(page, order_type: str, target_time_str: str, p
     target_ts = target_dt.timestamp() - (click_offset_ms / 1000.0)
     log(f"⏰ زمان هدف اصلی: {target_dt.strftime('%H:%M:%S')} | کلیک در: {datetime.fromtimestamp(target_ts).strftime('%H:%M:%S.%f')[:-3]} (با offset {click_offset_ms}ms)")
 
-    # --- Pre-locate the submit button and prep the fallback text NOW, so the critical
-    #     final milliseconds don't spend any time doing DOM queries. ---
     if order_type == "خرید":
         submit = page.locator("[data-cy='oms-order-form-submit-button-buy']")
         selector = "[data-cy=\"oms-order-form-submit-button-buy\"]"
@@ -370,15 +501,6 @@ async def wait_and_submit_at_time(page, order_type: str, target_time_str: str, p
         fallback_text = "ارسال فروش"
     await submit.wait_for(state="visible", timeout=TIMEOUT_SHORT)
 
-    # --- Timing ---
-    # NOTE on precision: a *true* blocking busy-wait (`while time.time_ns() < target: pass`)
-    # would freeze this coroutine's entire thread. Since run_multiple_trades can run several
-    # trades concurrently as tasks on ONE shared asyncio event loop, a hard busy-wait in one
-    # trade would stall every other trade's click by the same amount during that window —
-    # it would only be safe if you run exactly one trade at a time. The loop below sleeps
-    # normally until close to the deadline, then spins with `asyncio.sleep(0)` (a bare yield,
-    # not a real sleep) for the final stretch — this gets you near-busy-wait precision while
-    # still letting other trades' coroutines get a turn between spins.
     remaining = target_ts - time.time()
     fine_window = max(precision_ms, 15) / 1000.0
     if remaining > fine_window:
@@ -389,8 +511,6 @@ async def wait_and_submit_at_time(page, order_type: str, target_time_str: str, p
     click_ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
     log(f"🎯 کلیک در {click_ts}")
 
-    # JS dispatchEvent click — skips Playwright's actionability checks (visibility/scroll/
-    # animation waits) that a normal .click() performs, saving several ms.
     clicked = await page.evaluate(_JS_DISPATCH_CLICK, [selector, fallback_text])
     if not clicked:
         log("⚠️ کلیک JS ناموفق بود، fallback به Playwright click...")
@@ -551,7 +671,6 @@ async def sync_account_portfolio(username: str, password: str, account_name: str
 
 # ──────────── Sync Portfolio For All Accounts ────────────
 async def run_portfolio_sync(accounts: list) -> dict:
-    """برای هر حساب پرتفوی را استخراج می‌کند و دیکشنری {account_id: holdings} برمی‌گرداند"""
     tasks = [
         sync_account_portfolio(acc["username"], acc["password"], acc.get("name", f"حساب {i+1}"))
         for i, acc in enumerate(accounts)
@@ -566,16 +685,18 @@ async def run_portfolio_sync(accounts: list) -> dict:
         results[acc["id"]] = holdings
     return results
 
-# ──────────── Single Trade Runner ────────────
+# ──────────── Single Trade Runner (با دریافت db و account_id) ────────────
 async def run_single_trade(
     trade: dict,
     username: str,
     password: str,
     account_name: str,
+    account_id: int,
     trade_index: int,
     stop_event: asyncio.Event,
     precision_ms: int = 20,
     click_offset_ms: int = 0,
+    db=None,
 ) -> None:
     token_account = _log_account_ctx.set(account_name)
     token_symbol = _log_symbol_ctx.set(trade["symbol"])
@@ -610,6 +731,8 @@ async def run_single_trade(
             try:
                 await login_and_redirect(page, username, password)
                 await setup_notification_monitor(page, trade["symbol"], account_name)
+                # مانیتور زنده با دیتابیس
+                await setup_order_status_monitor(page, account_id, account_name, db)
                 await select_symbol(page, trade["symbol"])
                 await click_order_button(page, trade["order_type"])
                 await fill_order_form(page, trade["order_type"], trade.get("invest_amount"), trade.get("quantity"))
@@ -626,12 +749,13 @@ async def run_single_trade(
                 except Exception:
                     pass
     finally:
-        # بازگرداندن context به حالت قبل (پاک کردن)
         _log_account_ctx.reset(token_account)
         _log_symbol_ctx.reset(token_symbol)
 
-# ──────────── Main Orchestrator ────────────
-async def run_multiple_trades(accounts: list, trades: list, precision_ms: int = 20, stop_event: asyncio.Event = None, click_offset_ms: int = 0):
+# ──────────── Main Orchestrator (با دریافت db) ────────────
+async def run_multiple_trades(accounts: list, trades: list, precision_ms: int = 20,
+                              stop_event: asyncio.Event = None, click_offset_ms: int = 0,
+                              db=None):
     if stop_event is None:
         stop_event = asyncio.Event()
 
@@ -641,6 +765,8 @@ async def run_multiple_trades(accounts: list, trades: list, precision_ms: int = 
         log("🗑️ فایل notifications.log پاک شد (شروع جدید)")
     except Exception as e:
         log(f"⚠️ خطا در پاک کردن فایل لاگ: {e}")
+
+    clear_order_status()
 
     tasks = []
     for idx, trade in enumerate(trades):
@@ -652,8 +778,10 @@ async def run_multiple_trades(accounts: list, trades: list, precision_ms: int = 
         username = account["username"]
         password = account["password"]
         account_name = account.get("name", f"حساب {acc_id+1}")
+        real_account_id = account.get("id")  # شناسه واقعی در دیتابیس
         task = asyncio.create_task(
-            run_single_trade(trade, username, password, account_name, idx, stop_event, precision_ms, click_offset_ms)
+            run_single_trade(trade, username, password, account_name, real_account_id,
+                             idx, stop_event, precision_ms, click_offset_ms, db)
         )
         tasks.append(task)
 

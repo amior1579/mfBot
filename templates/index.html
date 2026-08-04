@@ -775,7 +775,7 @@
         .space-y-3 > * + * { margin-top: 0.75rem; }
 
         /* ===== Lists / Tables ===== */
-        .account-item, .trade-item, .portfolio-item {
+        .account-item, .trade-item, .portfolio-item, .order-status-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -787,7 +787,7 @@
             background: rgba(15, 23, 42, 0.3);
         }
 
-        .account-item:hover, .trade-item:hover, .portfolio-item:hover {
+        .account-item:hover, .trade-item:hover, .portfolio-item:hover, .order-status-item:hover {
             background: rgba(30, 41, 59, 0.6);
             border-color: rgba(59, 130, 246, 0.2);
             transform: translateX(-2px);
@@ -795,8 +795,20 @@
 
         .account-item + .account-item,
         .trade-item + .trade-item,
-        .portfolio-item + .portfolio-item {
+        .portfolio-item + .portfolio-item,
+        .order-status-item + .order-status-item {
             margin-top: 0.5rem;
+        }
+
+        .order-status-item {
+            flex-wrap: wrap;
+            row-gap: 0.6rem;
+        }
+        .order-status-item > * {
+            flex: 1 1 110px;
+        }
+        .order-status-item .account-info {
+            flex: 1.4 1 170px;
         }
 
         .account-info {
@@ -978,6 +990,8 @@
             border-radius: var(--radius-sm);
             padding: 0.75rem;
             border: 1px solid rgba(255,255,255,0.03);
+            /* از پرش اسکرول هنگام درج محتوای جدید جلوگیری می‌کند */
+            overflow-anchor: none;
         }
 
         .portfolio-container {
@@ -1526,6 +1540,34 @@
         <div class="overflow-auto min-w-800" id="tradesTable"></div>
     </div>
 
+<!-- ===== SECTION: وضعیت زنده معاملات ===== -->
+<div class="section-title">
+    <div class="section-icon">
+        <i data-lucide="receipt"></i>
+    </div>
+    <h2>وضعیت زنده معاملات</h2>
+    <div class="section-line"></div>
+</div>
+
+<div class="card mb-6">
+    <div class="card-title-row">
+        <h2 class="card-title" style="margin-bottom:0;">
+            <div class="title-icon">
+                <i data-lucide="list-checks"></i>
+            </div>
+            معاملات ثبت‌شده
+        </h2>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+            <span id="orderStatusUpdatedAt" class="text-xs text-gray-400"></span>
+            <button onclick="clearOrderHistory()" class="btn btn-danger btn-sm" title="پاک کردن تمام تاریخچه">
+                <i data-lucide="trash-2"></i>
+                <span>پاک کردن تاریخچه</span>
+            </button>
+        </div>
+    </div>
+    <div id="orderStatusContainer" class="portfolio-container"></div>
+</div>
+
     <!-- ===== SECTION: پرتفوی ===== -->
     <div class="section-title">
         <div class="section-icon">
@@ -1824,15 +1866,22 @@
     let accounts = [];
     let trades = [];
     let portfolioData = [];
+    let orderStatusData = [];
     let logInterval = null;
     let notifInterval = null;
     let portfolioInterval = null;
     let portfolioStatusInterval = null;
+    let orderStatusInterval = null;
     let editTradeId = null;
     let editTradeAccountId = null;
     let editAccountId = null;
     let selectedPortfolioHolding = null;
     let currentPortfolioRows = [];
+
+    // ردیابی آخرین ردیف رندر شده در لاگ/نوتیف، تا فقط موارد «جدید» اضافه شوند
+    // (به‌جای بازسازی کامل DOM در هر پول) — این همان چیزی است که پرش/فلیکر را برطرف می‌کند.
+    let lastLogSignature = null;
+    let lastNotifSignature = null;
 
     // ===== Helper: Refresh Lucide Icons =====
     function refreshIcons() {
@@ -2053,41 +2102,65 @@
         }, 1000);
     }
 
+    // ساخت HTML یک ردیف لاگ (خالص، بدون درج مستقیم در DOM)
+    function buildLogEntryHtml(logItem) {
+        let prefix = '';
+        if (logItem.account) prefix += `<span class="text-yellow-400">[${escapeHtml(logItem.account)}]</span> `;
+        if (logItem.symbol) prefix += `<span class="text-blue-400">[${escapeHtml(logItem.symbol)}]</span> `;
+
+        let iconName = 'chevron-right';
+        let iconColor = 'var(--text-muted)';
+        if (logItem.message.includes('خطا') || logItem.message.includes('Error')) {
+            iconName = 'alert-triangle';
+            iconColor = 'var(--accent-sell)';
+        } else if (logItem.message.includes('موفق') || logItem.message.includes('انجام')) {
+            iconName = 'check-circle';
+            iconColor = 'var(--accent-buy)';
+        } else if (logItem.message.includes('شروع') || logItem.message.includes('در حال')) {
+            iconName = 'loader-2';
+            iconColor = 'var(--accent-blue)';
+        } else if (logItem.message.includes('هشدار') || logItem.message.includes('Warning')) {
+            iconName = 'alert-circle';
+            iconColor = 'var(--accent-amber)';
+        }
+
+        return `<div class="log-entry">
+                    <div class="log-icon" style="color:${iconColor}"><i data-lucide="${iconName}" style="width:14px;height:14px;"></i></div>
+                    <div style="flex:1;">
+                        <span class="log-time">[${logItem.time}]</span>
+                        ${prefix}<span>${escapeHtml(logItem.message)}</span>
+                    </div>
+                </div>`;
+    }
+
+    // به‌جای بازسازی کامل innerHTML در هر پول (که باعث پرش/فلیکر اسکرول می‌شد)،
+    // فقط ردیف‌های جدید را به انتها اضافه می‌کنیم و اگر چیزی تغییر نکرده اصلاً به DOM دست نمی‌زنیم.
     function updateLogDisplay(logs) {
         const container = document.getElementById('logContainer');
-        if (!container) return;
-        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+        if (!container || !logs || !logs.length) return;
+
         const recent = logs.slice(-80);
-        container.innerHTML = recent.map(log => {
-            let prefix = '';
-            if (log.account) prefix += `<span class="text-yellow-400">[${escapeHtml(log.account)}]</span> `;
-            if (log.symbol) prefix += `<span class="text-blue-400">[${escapeHtml(log.symbol)}]</span> `;
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
 
-            // Choose icon based on message
-            let iconName = 'chevron-right';
-            let iconColor = 'var(--text-muted)';
-            if (log.message.includes('خطا') || log.message.includes('Error')) {
-                iconName = 'alert-triangle';
-                iconColor = 'var(--accent-sell)';
-            } else if (log.message.includes('موفق') || log.message.includes('انجام')) {
-                iconName = 'check-circle';
-                iconColor = 'var(--accent-buy)';
-            } else if (log.message.includes('شروع') || log.message.includes('در حال')) {
-                iconName = 'loader-2';
-                iconColor = 'var(--accent-blue)';
-            } else if (log.message.includes('هشدار') || log.message.includes('Warning')) {
-                iconName = 'alert-circle';
-                iconColor = 'var(--accent-amber)';
-            }
+        let startIdx = 0;
+        if (lastLogSignature) {
+            const idx = recent.findIndex(l => (l.time + '|' + l.message) === lastLogSignature);
+            startIdx = (idx !== -1) ? idx + 1 : 0;
+        }
 
-            return `<div class="log-entry">
-                        <div class="log-icon" style="color:${iconColor}"><i data-lucide="${iconName}" style="width:14px;height:14px;"></i></div>
-                        <div style="flex:1;">
-                            <span class="log-time">[${log.time}]</span>
-                            ${prefix}<span>${escapeHtml(log.message)}</span>
-                        </div>
-                    </div>`;
-        }).join('');
+        if (startIdx === 0) {
+            // اولین بارگذاری یا چرخش کامل بافر سرور: فقط اینجا بازسازی کامل انجام می‌شود
+            container.innerHTML = recent.map(buildLogEntryHtml).join('');
+        } else {
+            const newEntries = recent.slice(startIdx);
+            if (!newEntries.length) return; // چیز جدیدی نیست، به DOM دست نمی‌زنیم => بدون پرش
+            container.insertAdjacentHTML('beforeend', newEntries.map(buildLogEntryHtml).join(''));
+            while (container.children.length > 150) container.removeChild(container.firstChild);
+        }
+
+        const last = recent[recent.length - 1];
+        lastLogSignature = last.time + '|' + last.message;
+
         if (isAtBottom) container.scrollTop = container.scrollHeight;
         refreshIcons();
     }
@@ -2101,51 +2174,74 @@
         }, 1500);
     }
 
+    function buildNotifEntryHtml(line) {
+        const match = line.match(/\[(.*?)\]\s*\[(.*?)\]\s*\[(.*?)\]\s*(.*)/);
+        if (match) {
+            const [, timestamp, account, symbol, msg] = match;
+            return `<div class="notif-entry">
+                        <div class="notif-icon text-amber-400"><i data-lucide="bell-ring" style="width:14px;height:14px;color:var(--accent-amber);"></i></div>
+                        <div style="flex:1;">
+                            <span class="notif-time">[${timestamp}]</span>
+                            <span class="text-yellow-400">[${escapeHtml(account)}]</span>
+                            <span class="text-blue-400">[${escapeHtml(symbol)}]</span>
+                            <span>${escapeHtml(msg)}</span>
+                        </div>
+                    </div>`;
+        }
+        const matchOld = line.match(/\[(.*?)\]\s*\[(.*?)\]\s*(.*)/);
+        if (matchOld) {
+            const [, timestamp, symbol, msg] = matchOld;
+            return `<div class="notif-entry">
+                        <div class="notif-icon"><i data-lucide="bell" style="width:14px;height:14px;color:var(--accent-amber);"></i></div>
+                        <div style="flex:1;">
+                            <span class="notif-time">[${timestamp}]</span>
+                            <span class="text-blue-400">[${escapeHtml(symbol)}]</span>
+                            <span>${escapeHtml(msg)}</span>
+                        </div>
+                    </div>`;
+        }
+        return `<div class="notif-entry">
+                    <div class="notif-icon"><i data-lucide="bell" style="width:14px;height:14px;color:var(--accent-amber);"></i></div>
+                    <div style="flex:1;">${escapeHtml(line)}</div>
+                </div>`;
+    }
+
     function updateNotifDisplay(notifs) {
         const container = document.getElementById('notifContainer');
         if (!container) return;
+
         if (!notifs || notifs.length === 0) {
+            if (container.dataset.empty === '1') return; // از قبل خالی نمایش داده شده، دست نمی‌زنیم
             container.innerHTML = `<div class="empty-state">
                 <div class="empty-state-icon"><i data-lucide="bell-off"></i></div>
                 <div class="empty-state-text">هنوز نوتیفیکیشنی دریافت نشده است</div>
             </div>`;
+            container.dataset.empty = '1';
             refreshIcons();
             return;
         }
+        container.dataset.empty = '0';
+
         const recent = notifs.slice(-40);
-        container.innerHTML = recent.map(line => {
-            const match = line.match(/\[(.*?)\]\s*\[(.*?)\]\s*\[(.*?)\]\s*(.*)/);
-            if (match) {
-                const [, timestamp, account, symbol, msg] = match;
-                return `<div class="notif-entry">
-                            <div class="notif-icon text-amber-400"><i data-lucide="bell-ring" style="width:14px;height:14px;color:var(--accent-amber);"></i></div>
-                            <div style="flex:1;">
-                                <span class="notif-time">[${timestamp}]</span>
-                                <span class="text-yellow-400">[${escapeHtml(account)}]</span>
-                                <span class="text-blue-400">[${escapeHtml(symbol)}]</span>
-                                <span>${escapeHtml(msg)}</span>
-                            </div>
-                        </div>`;
-            } else {
-                const matchOld = line.match(/\[(.*?)\]\s*\[(.*?)\]\s*(.*)/);
-                if (matchOld) {
-                    const [, timestamp, symbol, msg] = matchOld;
-                    return `<div class="notif-entry">
-                                <div class="notif-icon"><i data-lucide="bell" style="width:14px;height:14px;color:var(--accent-amber);"></i></div>
-                                <div style="flex:1;">
-                                    <span class="notif-time">[${timestamp}]</span>
-                                    <span class="text-blue-400">[${escapeHtml(symbol)}]</span>
-                                    <span>${escapeHtml(msg)}</span>
-                                </div>
-                            </div>`;
-                }
-                return `<div class="notif-entry">
-                            <div class="notif-icon"><i data-lucide="bell" style="width:14px;height:14px;color:var(--accent-amber);"></i></div>
-                            <div style="flex:1;">${escapeHtml(line)}</div>
-                        </div>`;
-            }
-        }).join('');
-        container.scrollTop = container.scrollHeight;
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+
+        let startIdx = 0;
+        if (lastNotifSignature) {
+            const idx = recent.indexOf(lastNotifSignature);
+            startIdx = (idx !== -1) ? idx + 1 : 0;
+        }
+
+        if (startIdx === 0) {
+            container.innerHTML = recent.map(buildNotifEntryHtml).join('');
+        } else {
+            const newLines = recent.slice(startIdx);
+            if (!newLines.length) return;
+            container.insertAdjacentHTML('beforeend', newLines.map(buildNotifEntryHtml).join(''));
+            while (container.children.length > 80) container.removeChild(container.firstChild);
+        }
+
+        lastNotifSignature = recent[recent.length - 1];
+        if (isAtBottom) container.scrollTop = container.scrollHeight;
         refreshIcons();
     }
 
@@ -2278,6 +2374,96 @@
         loadPortfolio();
         if (portfolioInterval) clearInterval(portfolioInterval);
         portfolioInterval = setInterval(loadPortfolio, 15000);
+    }
+
+    // ===== وضعیت زنده سفارشات =====
+    async function loadOrderStatus() {
+        try {
+            const res = await fetch('/api/order-status');
+            const data = await res.json();
+            orderStatusData = data || [];
+            renderOrderStatus();
+        } catch (e) {
+            console.error('خطا در دریافت وضعیت سفارشات', e);
+        }
+    }
+
+    function startOrderStatusPolling() {
+        loadOrderStatus();
+        if (orderStatusInterval) clearInterval(orderStatusInterval);
+        orderStatusInterval = setInterval(loadOrderStatus, 2000);
+    }
+
+    function renderOrderStatus() {
+        const container = document.getElementById('orderStatusContainer');
+        if (!container) return;
+
+        if (!orderStatusData.length) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="empty-state-icon"><i data-lucide="list-checks"></i></div>
+                <div class="empty-state-text">هنوز سفارشی ثبت نشده است</div>
+            </div>`;
+            refreshIcons();
+            return;
+        }
+
+        const statusMeta = {
+            error:   { color: 'var(--accent-sell)',  icon: 'alert-triangle', label: 'خطا' },
+            success: { color: 'var(--accent-buy)',   icon: 'check-circle',   label: 'موفق' },
+            warning: { color: 'var(--accent-amber)', icon: 'alert-circle',   label: 'هشدار' },
+            pending: { color: 'var(--text-muted)',   icon: 'clock',          label: 'در حال پردازش' }
+        };
+
+        let html = '';
+        let latestUpdate = '';
+        orderStatusData.forEach(o => {
+            if (o.updated_at && o.updated_at > latestUpdate) latestUpdate = o.updated_at;
+            const isBuy = o.order_type === 'خرید';
+            const badgeClass = isBuy ? 'badge-buy' : 'badge-sell';
+            const badgeIcon = isBuy ? 'trending-up' : 'trending-down';
+            const meta = statusMeta[o.status_type] || statusMeta.pending;
+            const statusLabel = (o.status && o.status.trim()) ? o.status : meta.label;
+
+            html += `
+                <div class="order-status-item">
+                    <div class="account-info">
+                        <div class="account-avatar" style="color:#60a5fa;">
+                            <i data-lucide="user"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-white">${escapeHtml(o.account || '-')}</div>
+                            <div class="text-xs text-gray-400">${escapeHtml(o.symbol || '-')}</div>
+                        </div>
+                    </div>
+                    <span class="trade-badge ${badgeClass}">
+                        <i data-lucide="${badgeIcon}"></i><span>${escapeHtml(o.order_type || '-')}</span>
+                    </span>
+                    <div class="text-sm">
+                        <div class="text-xs text-gray-400">تعداد / حجم انجام‌شده</div>
+                        <div class="font-mono text-gray-200">${escapeHtml(o.quantity || '-')} ${escapeHtml(o.fill_info || '')}</div>
+                    </div>
+                    <div class="text-sm">
+                        <div class="text-xs text-gray-400">قیمت</div>
+                        <div class="font-mono text-gray-200">${escapeHtml(o.price || '-')}</div>
+                    </div>
+                    <div class="text-sm">
+                        <div class="text-xs text-gray-400">زمان ثبت</div>
+                        <div class="font-mono text-gray-200">${escapeHtml(o.order_date || '-')}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.35rem; color:${meta.color}; font-size:0.8rem; font-weight:700;">
+                        <i data-lucide="${meta.icon}" style="width:15px;height:15px;"></i>
+                        <span>${escapeHtml(statusLabel)}</span>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+
+        const updatedEl = document.getElementById('orderStatusUpdatedAt');
+        if (updatedEl && latestUpdate) {
+            updatedEl.textContent = 'به‌روزرسانی: ' + latestUpdate;
+        }
+        refreshIcons();
     }
 
     function openAddTradeModal(idx) {
@@ -2756,12 +2942,33 @@
             const logContainer = document.getElementById('logContainer');
             const notifContainer = document.getElementById('notifContainer');
             if (logContainer) logContainer.innerHTML = '';
-            if (notifContainer) notifContainer.innerHTML = '';
+            if (notifContainer) { notifContainer.innerHTML = ''; notifContainer.dataset.empty = ''; }
+            lastLogSignature = null;
+            lastNotifSignature = null;
+            orderStatusData = [];
+            renderOrderStatus();
             alert('✅ ربات به‌طور کامل ریست شد.');
         } else {
             alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
         }
     }
+
+    async function clearOrderHistory() {
+    if (!confirm('آیا از پاک کردن تمام تاریخچه معاملات ثبت‌شده اطمینان دارید؟ این عمل قابل بازگشت نیست.')) return;
+    try {
+        const res = await fetch('/api/order-history', { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ تاریخچه با موفقیت پاک شد.');
+            // بارگذاری مجدد لیست
+            loadOrderStatus();
+        } else {
+            alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
+        }
+    } catch (e) {
+        alert('❌ خطا در ارتباط با سرور');
+    }
+}
 
     window.onload = () => {
         refreshIcons();
@@ -2770,6 +2977,7 @@
         startLogPolling();
         startNotifPolling();
         startPortfolioPolling();
+        startOrderStatusPolling();
         loadPrecision();
         loadOffset();
         updateCountdown();

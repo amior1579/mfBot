@@ -1,24 +1,27 @@
-# web_app.py
 import asyncio
 import threading
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-from bot_core import run_multiple_trades, log_buffer, run_portfolio_sync
+from bot_core import (
+    run_multiple_trades,
+    log_buffer,
+    run_portfolio_sync,
+    get_order_status_snapshot,
+    clear_order_status,
+)
 from db import DatabaseManager
 from dotenv import load_dotenv
+
 app = Flask(__name__)
 CORS(app)
 
-# ──────────── راه‌اندازی دیتابیس ────────────
 load_dotenv()
-db = DatabaseManager()  # از متغیر محیطی DATABASE_URL استفاده می‌کند
+db = DatabaseManager()
 
-# ──────────── وضعیت ربات ────────────
 bot_running = False
 current_stop_event = None
 bot_lock = threading.Lock()
 
-# ──────────── وضعیت همگام‌سازی پرتفوی ────────────
 portfolio_syncing = False
 portfolio_lock = threading.Lock()
 
@@ -72,7 +75,6 @@ def add_trade():
     target_time = data.get("target_time")
     account_id = data.get("account_id")
 
-    # اعتبارسنجی
     if not all([symbol, order_type, amount, target_time, account_id is not None]):
         return jsonify({"error": "همه فیلدها الزامی است"}), 400
     try:
@@ -85,7 +87,6 @@ def add_trade():
     if not re.fullmatch(r"\d{2}:\d{2}:\d{2}", target_time):
         return jsonify({"error": "فرمت ساعت باید HH:MM:SS باشد"}), 400
 
-    # بررسی وجود account_id
     accounts = db.get_accounts()
     if not any(acc['id'] == account_id for acc in accounts):
         return jsonify({"error": "شناسه حساب نامعتبر"}), 400
@@ -199,7 +200,6 @@ def run_bot():
         if not trades:
             return jsonify({"error": "حداقل یک معامله تعریف کنید"}), 400
 
-        # تبدیل account_id واقعی به ایندکس در لیست accounts برای سازگاری با bot_core
         account_id_to_index = {acc['id']: i for i, acc in enumerate(accounts)}
         for trade in trades:
             real_id = trade['account_id']
@@ -216,7 +216,8 @@ def run_bot():
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                    run_multiple_trades(accounts, trades, precision_ms, stop_event, click_offset_ms)
+                    run_multiple_trades(accounts, trades, precision_ms, stop_event,
+                                        click_offset_ms, db)
                 )
             except Exception as e:
                 print(f"خطا در حلقه asyncio: {e}")
@@ -244,7 +245,6 @@ def stop_bot():
 
 @app.route("/api/reset", methods=["POST"])
 def reset_bot():
-    """ربات را به‌طور کامل ریست می‌کند: معاملات در حال اجرا را متوقف، مرورگرها را می‌بندد و لاگ‌ها/نوتیف‌ها را پاک می‌کند"""
     global bot_running, current_stop_event
     with bot_lock:
         if current_stop_event:
@@ -253,6 +253,7 @@ def reset_bot():
         current_stop_event = None
 
     log_buffer.clear()
+    clear_order_status()
     try:
         with open("notifications.log", "w", encoding="utf-8") as f:
             pass
@@ -301,6 +302,20 @@ def sync_portfolio():
     thread = threading.Thread(target=run_async)
     thread.start()
     return jsonify({"status": "همگام‌سازی پرتفوی آغاز شد"})
+
+# ===================== وضعیت زنده سفارشات (اکنون از دیتابیس) =====================
+@app.route("/api/order-status", methods=["GET"])
+def get_order_status():
+    return jsonify(db.get_today_orders())
+
+# ===================== حذف تاریخچه سفارشات (جدید) =====================
+@app.route("/api/order-history", methods=["DELETE"])
+def delete_order_history():
+    try:
+        db.delete_all_order_history()
+        return jsonify({"status": "تاریخچه سفارشات با موفقیت حذف شد"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ===================== دریافت کل تنظیمات (برای نمایش) =====================
 @app.route("/api/settings", methods=["GET"])

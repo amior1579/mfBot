@@ -1,4 +1,3 @@
-# db.py
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -61,11 +60,30 @@ class DatabaseManager:
                     updated_at TIMESTAMP DEFAULT NOW()
                 );
             """)
-            # ستون‌های جدید (سود/زیان کلی سهم و وضعیت نماد) - برای دیتابیس‌های موجود هم اضافه می‌شود
+            # ستون‌های جدید برای پرتفوی
             cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS profit_percent VARCHAR(20);")
             cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS profit_value VARCHAR(50);")
             cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS symbol_state VARCHAR(50);")
             cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS symbol_state_class VARCHAR(20);")
+
+            # جدول جدید برای تاریخچه سفارشات (معاملات ثبت‌شده)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS order_history (
+                    id SERIAL PRIMARY KEY,
+                    account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+                    account_name VARCHAR(100),
+                    symbol VARCHAR(50) NOT NULL,
+                    order_type VARCHAR(10),
+                    quantity VARCHAR(50),
+                    fill_info VARCHAR(100),
+                    price VARCHAR(50),
+                    order_date VARCHAR(50),
+                    status VARCHAR(100),
+                    status_type VARCHAR(20),
+                    observed_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
             cur.execute("""
                 INSERT INTO settings (key, value) VALUES 
                 ('precision_ms', '20'),
@@ -165,7 +183,6 @@ class DatabaseManager:
 
     # ──────────── Portfolio ────────────
     def replace_portfolio_holdings(self, account_id, holdings):
-        """پرتفوی قبلی این حساب را پاک کرده و مقادیر جدید را درج می‌کند"""
         conn = self.get_connection()
         with conn.cursor() as cur:
             cur.execute("DELETE FROM portfolio_holdings WHERE account_id = %s;", (account_id,))
@@ -204,3 +221,56 @@ class DatabaseManager:
                 ORDER BY a.name, p.symbol;
             """)
             return [dict(row) for row in cur.fetchall()]
+
+    # ──────────── Order History ────────────
+    def add_order_history(self, account_id, account_name, symbol, order_type,
+                          quantity, fill_info, price, order_date, status, status_type):
+        conn = self.get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO order_history
+                   (account_id, account_name, symbol, order_type, quantity,
+                    fill_info, price, order_date, status, status_type)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+                (account_id, account_name, symbol, order_type,
+                 quantity, fill_info, price, order_date, status, status_type)
+            )
+            conn.commit()
+
+    def get_today_orders(self):
+        """بازگرداندن آخرین وضعیت هر سفارش برای امروز (بر اساس observed_at)"""
+        conn = self.get_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                WITH ranked AS (
+                    SELECT *,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY account_id, symbol, order_type, price, quantity, order_date
+                               ORDER BY observed_at DESC
+                           ) AS rn
+                    FROM order_history
+                    WHERE DATE(observed_at) = CURRENT_DATE
+                )
+                SELECT account_id, 
+                       account_name AS account,   -- تغییر نام به account برای هماهنگی با فرانت‌اند
+                       symbol, 
+                       order_type, 
+                       quantity,
+                       fill_info, 
+                       price, 
+                       order_date, 
+                       status, 
+                       status_type,
+                       TO_CHAR(observed_at, 'HH24:MI:SS') as updated_at
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY account_name, symbol;
+            """)
+            return [dict(row) for row in cur.fetchall()]
+
+    def delete_all_order_history(self):
+        """حذف تمام رکوردهای تاریخچه سفارشات"""
+        conn = self.get_connection()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM order_history;")
+            conn.commit()
