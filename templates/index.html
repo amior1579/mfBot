@@ -2,7 +2,11 @@
 <html dir="rtl" lang="fa">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#05070f">
     <title>ربات معاملاتی ایزی‌تریدر</title>
 
     <!-- Lucide Icons -->
@@ -41,6 +45,10 @@
             --icon-size-md: 18px;
             --icon-size-lg: 22px;
             --icon-size-xl: 28px;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
         }
 
         * {
@@ -48,6 +56,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html { scroll-behavior: smooth; }
@@ -55,11 +64,15 @@
         body {
             background: var(--bg-primary);
             min-height: 100vh;
+            min-height: 100dvh;
             color: var(--text-primary);
-            padding: 1.75rem;
+            padding: calc(1.75rem + var(--safe-top)) 1.75rem 1.75rem;
+            padding-right: calc(1.75rem + var(--safe-right));
+            padding-left: calc(1.75rem + var(--safe-left));
             overflow-x: hidden;
             position: relative;
             -webkit-font-smoothing: antialiased;
+            overscroll-behavior-y: contain;
         }
 
         /* ===== Lucide Icon Styles ===== */
@@ -88,18 +101,10 @@
         .icon-purple { color: var(--accent-purple); }
         .icon-amber { color: var(--accent-amber); }
 
-        .icon-spin {
-            animation: spin 1s linear infinite;
-        }
+        .icon-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .icon-pulse {
-            animation: iconPulse 2s ease-in-out infinite;
-        }
-
+        .icon-pulse { animation: iconPulse 2s ease-in-out infinite; }
         @keyframes iconPulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -127,7 +132,6 @@
             animation: float 25s ease-in-out infinite;
             will-change: transform;
         }
-
         .aurora-blob:nth-child(1) {
             width: 550px; height: 550px;
             background: radial-gradient(circle, #10b981, transparent 70%);
@@ -156,7 +160,6 @@
             animation-duration: 28s;
             opacity: 0.2;
         }
-
         @keyframes float {
             0%, 100% { transform: translate(0, 0) scale(1); }
             25% { transform: translate(80px, -60px) scale(1.15); }
@@ -329,6 +332,8 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            flex: 1;
+            min-width: 0;
         }
 
         .logo-icon {
@@ -343,6 +348,7 @@
             box-shadow: 0 8px 24px -8px var(--accent-buy-glow);
             position: relative;
             color: #6ee7b7;
+            flex-shrink: 0;
         }
 
         .logo-icon .lucide {
@@ -363,6 +369,8 @@
             filter: blur(4px);
         }
 
+        .logo-text { min-width: 0; flex: 1; }
+
         .logo-text h1 {
             font-size: 1.5rem;
             font-weight: 800;
@@ -372,6 +380,7 @@
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.02em;
             line-height: 1.2;
+            word-break: break-word;
         }
 
         .logo-text p {
@@ -395,15 +404,11 @@
             letter-spacing: 0.05em;
             direction: ltr;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            flex-shrink: 0;
         }
 
         .live-clock .clock-seconds { color: var(--accent-buy); }
-
-        .live-clock .lucide {
-            width: 20px;
-            height: 20px;
-            color: var(--accent-buy);
-        }
+        .live-clock .lucide { width: 20px; height: 20px; color: var(--accent-buy); }
 
         /* ===== Status & Actions ===== */
         .hero-actions {
@@ -469,6 +474,8 @@
             position: relative;
             overflow: hidden;
             letter-spacing: -0.01em;
+            min-height: 38px;
+            white-space: nowrap;
         }
 
         .btn::before {
@@ -521,11 +528,14 @@
             padding: 0.375rem 0.875rem;
             font-size: 0.75rem;
             border-radius: 0.5rem;
+            min-height: 30px;
         }
 
         .btn-icon {
             padding: 0.45rem;
             font-size: 0.85rem;
+            min-height: 32px;
+            min-width: 32px;
         }
 
         .btn-block { width: 100%; }
@@ -540,6 +550,7 @@
         .btn-lg {
             padding: 0.875rem 1.75rem;
             font-size: 0.95rem;
+            min-height: 44px;
         }
 
         /* ===== Stats Cards ===== */
@@ -602,11 +613,7 @@
             color: var(--stat-color, var(--accent-blue));
         }
 
-        .stat-icon .lucide {
-            width: 18px;
-            height: 18px;
-            stroke-width: 2;
-        }
+        .stat-icon .lucide { width: 18px; height: 18px; stroke-width: 2; }
 
         .stat-value {
             font-size: 1.75rem;
@@ -624,12 +631,7 @@
             font-weight: 500;
         }
 
-        .stat-sparkline {
-            margin-top: 0.75rem;
-            height: 32px;
-            width: 100%;
-        }
-
+        .stat-sparkline { margin-top: 0.75rem; height: 32px; width: 100%; }
         .stat-sparkline svg { width: 100%; height: 100%; overflow: visible; }
 
         .sparkline-path {
@@ -640,10 +642,7 @@
             stroke-linejoin: round;
         }
 
-        .sparkline-area {
-            fill: var(--stat-color, var(--accent-blue));
-            opacity: 0.1;
-        }
+        .sparkline-area { fill: var(--stat-color, var(--accent-blue)); opacity: 0.1; }
 
         .countdown-card {
             background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
@@ -661,21 +660,9 @@
         }
 
         /* ===== Grid ===== */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-        }
-        .grid-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 0.75rem;
-        }
-        .grid-2col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
-        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
         .flex-wrap {
             display: flex;
             flex-wrap: wrap;
@@ -695,6 +682,9 @@
             font-family: inherit;
             font-size: 0.875rem;
             font-weight: 500;
+            min-height: 42px;
+            appearance: none;
+            -webkit-appearance: none;
         }
 
         input:focus, select:focus {
@@ -704,15 +694,9 @@
             background: rgba(15, 23, 42, 0.95) !important;
         }
 
-        input::placeholder {
-            color: var(--text-muted) !important;
-            font-weight: 400;
-        }
+        input::placeholder { color: var(--text-muted) !important; font-weight: 400; }
 
-        input:disabled, select:disabled, .readonly-box {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+        input:disabled, select:disabled, .readonly-box { opacity: 0.6; cursor: not-allowed; }
 
         .readonly-box {
             background: rgba(15, 23, 42, 0.8);
@@ -736,11 +720,7 @@
             letter-spacing: 0.03em;
         }
 
-        .input-label .lucide {
-            width: 13px;
-            height: 13px;
-            color: var(--text-muted);
-        }
+        .input-label .lucide { width: 13px; height: 13px; color: var(--text-muted); }
 
         /* ===== Utilities ===== */
         .w-full { width: 100%; }
@@ -800,22 +780,11 @@
             margin-top: 0.5rem;
         }
 
-        .order-status-item {
-            flex-wrap: wrap;
-            row-gap: 0.6rem;
-        }
-        .order-status-item > * {
-            flex: 1 1 110px;
-        }
-        .order-status-item .account-info {
-            flex: 1.4 1 170px;
-        }
+        .order-status-item { flex-wrap: wrap; row-gap: 0.6rem; }
+        .order-status-item > * { flex: 1 1 110px; }
+        .order-status-item .account-info { flex: 1.4 1 170px; }
 
-        .account-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
+        .account-info { display: flex; align-items: center; gap: 0.75rem; }
 
         .account-avatar {
             width: 36px;
@@ -830,10 +799,7 @@
             flex-shrink: 0;
         }
 
-        .account-avatar .lucide {
-            width: 18px;
-            height: 18px;
-        }
+        .account-avatar .lucide { width: 18px; height: 18px; }
 
         .trade-badge {
             display: inline-flex;
@@ -846,11 +812,7 @@
             letter-spacing: 0.02em;
         }
 
-        .trade-badge .lucide {
-            width: 14px;
-            height: 14px;
-            stroke-width: 2.5;
-        }
+        .trade-badge .lucide { width: 14px; height: 14px; stroke-width: 2.5; }
 
         .badge-buy {
             background: rgba(16, 185, 129, 0.15);
@@ -895,12 +857,7 @@
             z-index: 2;
         }
 
-        .portfolio-col {
-            flex: 1;
-            min-width: 100px;
-            text-align: center;
-        }
-
+        .portfolio-col { flex: 1; min-width: 100px; text-align: center; }
         .portfolio-col.symbol-col {
             flex: 1.4;
             text-align: right;
@@ -909,11 +866,7 @@
             align-items: center;
             color: var(--text-secondary);
         }
-
-        .portfolio-col.action-col {
-            flex: 0.6;
-            min-width: 50px;
-        }
+        .portfolio-col.action-col { flex: 0.6; min-width: 50px; }
 
         .text-profit { color: #6ee7b7; font-weight: 700; }
         .text-loss { color: #fca5a5; font-weight: 700; }
@@ -931,12 +884,10 @@
             padding-bottom: 1rem;
             border-bottom: 1px solid rgba(255,255,255,0.05);
             margin-bottom: 1rem;
+            flex-wrap: wrap;
         }
 
-        .terminal-dot {
-            width: 12px; height: 12px;
-            border-radius: 50%;
-        }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
         .terminal-dot.red { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
         .terminal-dot.yellow { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
         .terminal-dot.green { background: #10b981; box-shadow: 0 0 8px #10b981; }
@@ -951,12 +902,7 @@
             align-items: center;
             gap: 0.4rem;
         }
-
-        .terminal-title .lucide {
-            width: 14px;
-            height: 14px;
-            color: var(--accent-buy);
-        }
+        .terminal-title .lucide { width: 14px; height: 14px; color: var(--accent-buy); }
 
         .terminal-badge {
             display: inline-flex;
@@ -990,7 +936,6 @@
             border-radius: var(--radius-sm);
             padding: 0.75rem;
             border: 1px solid rgba(255,255,255,0.03);
-            /* از پرش اسکرول هنگام درج محتوای جدید جلوگیری می‌کند */
             overflow-anchor: none;
         }
 
@@ -1010,27 +955,18 @@
             display: flex;
             align-items: flex-start;
             gap: 0.5rem;
+            word-break: break-word;
         }
 
-        .log-entry .log-icon, .notif-entry .notif-icon {
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        .log-entry .log-icon .lucide, .notif-entry .notif-icon .lucide {
-            width: 14px;
-            height: 14px;
-        }
+        .log-entry .log-icon, .notif-entry .notif-icon { flex-shrink: 0; margin-top: 2px; }
+        .log-entry .log-icon .lucide, .notif-entry .notif-icon .lucide { width: 14px; height: 14px; }
 
         @keyframes logSlide {
             from { opacity: 0; transform: translateX(10px); }
             to { opacity: 1; transform: translateX(0); }
         }
 
-        .log-entry:hover, .notif-entry:hover {
-            background: rgba(148, 163, 184, 0.05);
-        }
-
+        .log-entry:hover, .notif-entry:hover { background: rgba(148, 163, 184, 0.05); }
         .log-time { color: var(--accent-buy); font-weight: 600; }
         .notif-time { color: var(--accent-amber); font-weight: 600; }
 
@@ -1057,14 +993,12 @@
             justify-content: center;
             z-index: 100;
             padding: 1rem;
+            padding-top: calc(1rem + var(--safe-top));
+            padding-bottom: calc(1rem + var(--safe-bottom));
             animation: modalFadeIn 0.3s ease-out;
         }
 
-        @keyframes modalFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
+        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
         .modal-overlay.active { display: flex; }
 
         .modal-box {
@@ -1081,6 +1015,7 @@
                 0 0 0 1px rgba(255,255,255,0.05),
                 inset 0 1px 0 0 rgba(255,255,255,0.05);
             max-height: 90vh;
+            max-height: calc(100dvh - 2rem);
             overflow-y: auto;
             position: relative;
             animation: modalScale 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1108,30 +1043,22 @@
             align-items: center;
             gap: 0.6rem;
         }
+        .modal-box h3 .lucide { width: 24px; height: 24px; color: var(--accent-blue); }
 
-        .modal-box h3 .lucide {
-            width: 24px;
-            height: 24px;
-            color: var(--accent-blue);
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 0.6rem;
-            margin-top: 1.5rem;
-        }
+        .modal-actions { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
         .modal-actions .btn { flex: 1; }
 
         /* ===== Toast System ===== */
         .toast-container {
             position: fixed;
-            top: 1.5rem;
-            left: 1.5rem;
+            top: calc(1.5rem + var(--safe-top));
+            right: calc(1.5rem + var(--safe-right));
             z-index: 1000;
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
             pointer-events: none;
+            max-width: calc(100% - 3rem);
         }
 
         .toast {
@@ -1154,17 +1081,12 @@
         }
 
         @keyframes toastSlide {
-            from { opacity: 0; transform: translateX(-100%); }
+            from { opacity: 0; transform: translateX(100%); }
             to { opacity: 1; transform: translateX(0); }
         }
 
-        .toast.removing {
-            animation: toastOut 0.3s ease-in forwards;
-        }
-
-        @keyframes toastOut {
-            to { opacity: 0; transform: translateX(-100%); }
-        }
+        .toast.removing { animation: toastOut 0.3s ease-in forwards; }
+        @keyframes toastOut { to { opacity: 0; transform: translateX(100%); } }
 
         .toast::before {
             content: '';
@@ -1174,11 +1096,7 @@
             background: var(--toast-color, var(--accent-blue));
             animation: toastProgress 3s linear forwards;
         }
-
-        @keyframes toastProgress {
-            from { width: 100%; }
-            to { width: 0%; }
-        }
+        @keyframes toastProgress { from { width: 100%; } to { width: 0%; } }
 
         .toast-icon {
             width: 32px; height: 32px;
@@ -1192,15 +1110,11 @@
             color: white;
         }
 
-        .toast-icon .lucide {
-            width: 16px;
-            height: 16px;
-            stroke-width: 3;
-        }
+        .toast-icon .lucide { width: 16px; height: 16px; stroke-width: 3; }
 
-        .toast-content { flex: 1; }
+        .toast-content { flex: 1; min-width: 0; }
         .toast-title { font-weight: 700; font-size: 0.875rem; margin-bottom: 0.15rem; }
-        .toast-message { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+        .toast-message { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; word-break: break-word; }
 
         .toast.success { --toast-color: var(--accent-buy); }
         .toast.error { --toast-color: var(--accent-sell); }
@@ -1227,12 +1141,7 @@
             color: var(--accent-blue);
             flex-shrink: 0;
         }
-
-        .section-icon .lucide {
-            width: 20px;
-            height: 20px;
-            stroke-width: 2;
-        }
+        .section-icon .lucide { width: 20px; height: 20px; stroke-width: 2; }
 
         .section-title h2 {
             font-size: 1.1rem;
@@ -1241,16 +1150,12 @@
             letter-spacing: -0.01em;
         }
 
-        .section-line {
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, var(--glass-border), transparent);
-        }
+        .section-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--glass-border), transparent); }
 
         /* ===== Footer ===== */
         .footer {
             text-align: center;
-            padding: 2rem 1rem;
+            padding: 2rem 1rem calc(2rem + var(--safe-bottom));
             color: var(--text-muted);
             font-size: 0.8rem;
             border-top: 1px solid var(--glass-border);
@@ -1259,6 +1164,7 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         .footer strong {
@@ -1268,19 +1174,10 @@
             -webkit-text-fill-color: transparent;
             font-weight: 700;
         }
-
-        .footer .lucide {
-            width: 14px;
-            height: 14px;
-            color: var(--accent-sell);
-        }
+        .footer .lucide { width: 14px; height: 14px; color: var(--accent-sell); }
 
         /* ===== Empty State ===== */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--text-muted);
-        }
+        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
 
         .empty-state-icon {
             width: 60px;
@@ -1294,46 +1191,330 @@
             border-radius: 16px;
             color: var(--text-muted);
         }
+        .empty-state-icon .lucide { width: 28px; height: 28px; opacity: 0.6; }
+        .empty-state-text { font-size: 0.9rem; }
 
-        .empty-state-icon .lucide {
-            width: 28px;
-            height: 28px;
-            opacity: 0.6;
+        /* ===== Time Offset Buttons Group ===== */
+        .trade-time-group {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            flex-wrap: wrap;
         }
 
-        .empty-state-text {
-            font-size: 0.9rem;
+        .trade-time-group .font-mono {
+            min-width: 70px;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
         }
 
-        /* ===== Responsive ===== */
+        .trade-actions-group {
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+
+        /* ======================================================== */
+        /* ===== RESPONSIVE ===== */
+        /* ======================================================== */
+
+        /* تبلت */
         @media (max-width: 900px) {
             .grid-2 { grid-template-columns: 1fr; }
             .hero { flex-direction: column; }
             .stats-row { grid-template-columns: repeat(2, 1fr); }
         }
 
+        /* موبایل */
         @media (max-width: 640px) {
-            body { padding: 0.85rem; }
-            .card { padding: 1.25rem; border-radius: 1.1rem; }
-            .logo-text h1 { font-size: 1.2rem; }
-            .logo-text p { font-size: 0.7rem; }
-            .card-title { font-size: 1rem; }
-            .grid-3, .grid-2col { grid-template-columns: 1fr; }
-            .account-item, .trade-item {
-                flex-wrap: wrap;
-                font-size: 0.8rem;
-                row-gap: 0.4rem;
+            body {
+                padding: calc(0.85rem + var(--safe-top)) 0.85rem 0.85rem;
+                padding-right: calc(0.85rem + var(--safe-right));
+                padding-left: calc(0.85rem + var(--safe-left));
             }
-            .account-item > div, .trade-item > div { flex: 1 1 45%; }
+            .card { padding: 1.25rem; border-radius: 1.1rem; }
+            .logo-text h1 { font-size: 1.15rem; }
+            .logo-text p { font-size: 0.7rem; }
+            .card-title { font-size: 1rem; margin-bottom: 1rem; }
+            .grid-3, .grid-2col { grid-template-columns: 1fr; }
             .stats-row { grid-template-columns: 1fr; }
-            .live-clock { font-size: 1.2rem; }
+            .live-clock { font-size: 1.1rem; padding: 0.4rem 0.9rem; }
             .hero-main { padding: 1.25rem; }
+            .hero-top { gap: 0.75rem; }
+            .logo-icon { width: 3rem; height: 3rem; border-radius: 0.75rem; }
+            .logo-icon .lucide { width: 22px; height: 22px; }
+            .hero-actions { gap: 0.5rem; }
+            .status-badge { padding: 0.5rem 1rem; font-size: 0.8rem; }
+            .btn-lg { padding: 0.75rem 1.25rem; font-size: 0.875rem; }
+
+            /* حساب‌ها و معاملات در موبایل به صورت کارت stack شوند */
+            .account-item, .trade-item, .order-status-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 1rem;
+                gap: 0.75rem;
+            }
+
+            .account-item > *, .trade-item > *, .order-status-item > * {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .account-info { width: 100%; }
+            .account-avatar { width: 40px; height: 40px; }
+
+            .trade-item {
+                position: relative;
+                padding-right: 1rem;
+                padding-left: 1rem;
+            }
+
+            .trade-item > div:first-child {
+                width: 100%;
+            }
+
+            .trade-item .trade-badge {
+                align-self: flex-start;
+            }
+
+            .trade-time-group, .trade-actions-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .trade-actions-group {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.4rem;
+            }
+
+            .trade-actions-group .btn {
+                width: 100%;
+                min-height: 44px;
+            }
+
+            /* جداول با min-width در موبایل به صورت اسکرول افقی با راهنما */
+            .overflow-auto {
+                position: relative;
+            }
+            .overflow-auto::after {
+                content: '← بکشید →';
+                position: sticky;
+                right: 0;
+                display: block;
+                text-align: center;
+                font-size: 0.7rem;
+                color: var(--text-muted);
+                padding: 0.5rem;
+                background: linear-gradient(180deg, transparent, rgba(5,7,15,0.95));
+                pointer-events: none;
+            }
+
+            /* پرتفوی در موبایل: تبدیل به کارت */
+            .portfolio-header-row { display: none; }
+
+            .portfolio-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 1rem;
+                gap: 0.75rem;
+            }
+
+            .portfolio-item .portfolio-col {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                text-align: right;
+                min-width: 0;
+                padding: 0.25rem 0;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+            }
+
+            .portfolio-item .portfolio-col::before {
+                content: attr(data-label);
+                font-size: 0.7rem;
+                color: var(--text-muted);
+                font-weight: 600;
+                margin-left: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+
+            .portfolio-item .portfolio-col.symbol-col {
+                border-bottom: 1px solid var(--glass-border);
+                padding-bottom: 0.5rem;
+                margin-bottom: 0.25rem;
+                font-size: 1rem;
+                font-weight: 700;
+            }
+
+            .portfolio-item .portfolio-col.symbol-col::before { display: none; }
+
+            .portfolio-item .portfolio-col.action-col {
+                border-bottom: none;
+                justify-content: center;
+            }
+
+            .portfolio-item .portfolio-col.action-col::before { display: none; }
+
+            .portfolio-item .portfolio-col.action-col .btn {
+                width: 100%;
+                min-height: 44px;
+            }
+
+            /* Terminal و لاگ‌ها */
+            .log-container, .notif-container {
+                height: 280px;
+                font-size: 11.5px;
+                padding: 0.5rem;
+            }
+
+            .log-entry, .notif-entry { padding: 0.5rem; font-size: 11.5px; }
+
+            .terminal-header { gap: 0.35rem; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+            .terminal-title { font-size: 0.7rem; }
+
+            /* Modal در موبایل */
+            .modal-box {
+                padding: 1.5rem;
+                border-radius: 1.1rem;
+                max-height: calc(100dvh - 2rem);
+            }
+
+            .modal-box h3 { font-size: 1.15rem; margin-bottom: 1.25rem; }
+
+            .modal-actions {
+                flex-direction: column-reverse;
+                gap: 0.5rem;
+            }
+
+            /* Toast ها */
+            .toast {
+                min-width: 260px;
+                max-width: 100%;
+                padding: 0.75rem 1rem;
+            }
+
+            .toast-title { font-size: 0.8rem; }
+            .toast-message { font-size: 0.75rem; }
+
+            /* Section titles */
+            .section-title h2 { font-size: 1rem; }
+            .section-icon { width: 32px; height: 32px; }
+            .section-icon .lucide { width: 18px; height: 18px; }
+            .section-title { margin: 1.75rem 0 0.85rem; }
+
+            /* Footer */
+            .footer { font-size: 0.75rem; padding: 1.5rem 1rem; }
+
+            /* Countdown value */
+            .countdown-value { font-size: 1.5rem; }
+
+            /* Card title row */
+            .card-title-row { gap: 0.5rem; margin-bottom: 1rem; }
+            .card-title-row > div { width: 100%; justify-content: space-between; }
+
+            /* Portfolio account filter */
+            .card-title-row select { flex: 1; min-width: 0 !important; }
+
+            /* Inputs در موبایل */
+            input, select { font-size: 16px !important; padding: 0.65rem 0.85rem !important; }
+            .input-label { font-size: 0.7rem; }
+
+            /* Empty state */
+            .empty-state { padding: 2rem 0.5rem; }
+            .empty-state-icon { width: 50px; height: 50px; }
+            .empty-state-text { font-size: 0.8rem; }
         }
 
+        /* موبایل‌های کوچک */
         @media (max-width: 420px) {
-            .hero-actions { flex-direction: column; align-items: stretch; }
-            .hero-actions .btn { width: 100%; }
-            .status-badge { width: 100%; justify-content: center; }
+            body {
+                padding: calc(0.6rem + var(--safe-top)) 0.6rem 0.6rem;
+                padding-right: calc(0.6rem + var(--safe-right));
+                padding-left: calc(0.6rem + var(--safe-left));
+            }
+            .card { padding: 1rem; border-radius: 1rem; }
+            .logo-text h1 { font-size: 1rem; }
+            .logo-icon { width: 2.75rem; height: 2.75rem; }
+            .logo-icon .lucide { width: 20px; height: 20px; }
+
+            .hero-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .hero-actions .btn, .hero-actions .status-badge {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .live-clock { font-size: 1rem; padding: 0.35rem 0.75rem; gap: 0.4rem; }
+
+            .stat-value { font-size: 1.5rem; }
+            .countdown-value { font-size: 1.35rem; }
+
+            .trade-item, .account-item, .order-status-item {
+                padding: 0.85rem;
+            }
+
+            .trade-time-group .btn {
+                flex: 1;
+                padding: 0.4rem 0.6rem;
+                font-size: 0.75rem;
+                min-height: 38px;
+            }
+
+            .btn-lg { padding: 0.7rem 1rem; font-size: 0.85rem; }
+
+            .toast-container {
+                top: calc(0.75rem + var(--safe-top));
+                right: calc(0.75rem + var(--safe-right));
+                max-width: calc(100% - 1.5rem);
+            }
+            .toast { min-width: 0; padding: 0.65rem 0.85rem; }
+
+            .modal-box { padding: 1.25rem; }
+            .modal-box h3 { font-size: 1.05rem; }
+        }
+
+        /* موبایل‌های بسیار کوچک */
+        @media (max-width: 360px) {
+            .logo-text h1 { font-size: 0.95rem; }
+            .card-title { font-size: 0.95rem; }
+            .section-title h2 { font-size: 0.9rem; }
+            .stat-label { font-size: 0.65rem; }
+            .btn { font-size: 0.8rem; padding: 0.55rem 1rem; }
+            .btn-sm { font-size: 0.7rem; padding: 0.3rem 0.65rem; }
+        }
+
+        /* حالت افقی (landscape) موبایل */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .hero-main { padding: 1rem; }
+            .log-container, .notif-container { height: 180px; }
+            .portfolio-container { max-height: 250px; }
+            .modal-box { max-height: 95vh; padding: 1rem; }
+            .modal-box h3 { margin-bottom: 0.75rem; font-size: 1rem; }
+            .card { padding: 1rem; }
+        }
+
+        /* بهبود touch برای دستگاه‌های لمسی */
+        @media (hover: none) and (pointer: coarse) {
+            .btn { min-height: 42px; }
+            .btn-sm { min-height: 38px; }
+            .btn-icon { min-height: 40px; min-width: 40px; }
+            input, select { min-height: 46px; }
+            .card:hover { transform: none; }
+            .card:hover::after { opacity: 0; }
+            .account-item:hover, .trade-item:hover, .portfolio-item:hover, .order-status-item:hover {
+                transform: none;
+            }
+        }
+
+        /* Dark mode scrollbar برای موبایل */
+        @media (max-width: 640px) {
+            ::-webkit-scrollbar { width: 4px; height: 4px; }
         }
     </style>
 </head>
@@ -1390,9 +1571,7 @@
                 <div class="stat-card" style="--stat-color: var(--accent-blue);">
                     <div class="stat-header">
                         <div class="stat-label">حساب‌های فعال</div>
-                        <div class="stat-icon">
-                            <i data-lucide="users"></i>
-                        </div>
+                        <div class="stat-icon"><i data-lucide="users"></i></div>
                     </div>
                     <div class="stat-value">
                         <span id="statAccounts">0</span>
@@ -1404,9 +1583,7 @@
                 <div class="stat-card" style="--stat-color: var(--accent-buy);">
                     <div class="stat-header">
                         <div class="stat-label">معاملات تعریف‌شده</div>
-                        <div class="stat-icon">
-                            <i data-lucide="trending-up"></i>
-                        </div>
+                        <div class="stat-icon"><i data-lucide="trending-up"></i></div>
                     </div>
                     <div class="stat-value">
                         <span id="statTrades">0</span>
@@ -1418,9 +1595,7 @@
                 <div class="stat-card countdown-card" style="--stat-color: var(--accent-buy);">
                     <div class="stat-header">
                         <div class="stat-label">زمان تا معامله بعدی</div>
-                        <div class="stat-icon">
-                            <i data-lucide="timer"></i>
-                        </div>
+                        <div class="stat-icon"><i data-lucide="timer"></i></div>
                     </div>
                     <div class="countdown-value" id="countdown">--:--</div>
                 </div>
@@ -1428,9 +1603,7 @@
                 <div class="stat-card" style="--stat-color: var(--accent-purple);">
                     <div class="stat-header">
                         <div class="stat-label">پرتفوی</div>
-                        <div class="stat-icon">
-                            <i data-lucide="briefcase"></i>
-                        </div>
+                        <div class="stat-icon"><i data-lucide="briefcase"></i></div>
                     </div>
                     <div class="stat-value">
                         <span id="statPortfolio">0</span>
@@ -1444,9 +1617,7 @@
 
     <!-- ===== SECTION: مدیریت ===== -->
     <div class="section-title">
-        <div class="section-icon">
-            <i data-lucide="settings-2"></i>
-        </div>
+        <div class="section-icon"><i data-lucide="settings-2"></i></div>
         <h2>مدیریت حساب و معاملات</h2>
         <div class="section-line"></div>
     </div>
@@ -1454,9 +1625,7 @@
     <div class="grid-2 mb-6">
         <div class="card">
             <h2 class="card-title">
-                <div class="title-icon">
-                    <i data-lucide="users"></i>
-                </div>
+                <div class="title-icon"><i data-lucide="users"></i></div>
                 حساب‌های صرافی
             </h2>
             <div id="accountsTable" class="mb-4" style="max-height:260px; overflow-y:auto;"></div>
@@ -1473,9 +1642,7 @@
 
         <div class="card">
             <h2 class="card-title">
-                <div class="title-icon">
-                    <i data-lucide="trending-up"></i>
-                </div>
+                <div class="title-icon"><i data-lucide="trending-up"></i></div>
                 معامله جدید
             </h2>
             <div class="space-y-3">
@@ -1532,47 +1699,39 @@
     <!-- ===== Trades List ===== -->
     <div class="card mb-6">
         <h2 class="card-title">
-            <div class="title-icon">
-                <i data-lucide="list"></i>
-            </div>
+            <div class="title-icon"><i data-lucide="list"></i></div>
             لیست معاملات
         </h2>
-        <div class="overflow-auto min-w-800" id="tradesTable"></div>
+        <div id="tradesTable"></div>
     </div>
 
-<!-- ===== SECTION: وضعیت زنده معاملات ===== -->
-<div class="section-title">
-    <div class="section-icon">
-        <i data-lucide="receipt"></i>
+    <!-- ===== SECTION: وضعیت زنده معاملات ===== -->
+    <div class="section-title">
+        <div class="section-icon"><i data-lucide="receipt"></i></div>
+        <h2>وضعیت زنده معاملات</h2>
+        <div class="section-line"></div>
     </div>
-    <h2>وضعیت زنده معاملات</h2>
-    <div class="section-line"></div>
-</div>
 
-<div class="card mb-6">
-    <div class="card-title-row">
-        <h2 class="card-title" style="margin-bottom:0;">
-            <div class="title-icon">
-                <i data-lucide="list-checks"></i>
+    <div class="card mb-6">
+        <div class="card-title-row">
+            <h2 class="card-title" style="margin-bottom:0;">
+                <div class="title-icon"><i data-lucide="list-checks"></i></div>
+                معاملات ثبت‌شده
+            </h2>
+            <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                <span id="orderStatusUpdatedAt" class="text-xs text-gray-400"></span>
+                <button onclick="clearOrderHistory()" class="btn btn-danger btn-sm" title="پاک کردن تمام تاریخچه">
+                    <i data-lucide="trash-2"></i>
+                    <span>پاک کردن تاریخچه</span>
+                </button>
             </div>
-            معاملات ثبت‌شده
-        </h2>
-        <div style="display:flex; align-items:center; gap:0.6rem;">
-            <span id="orderStatusUpdatedAt" class="text-xs text-gray-400"></span>
-            <button onclick="clearOrderHistory()" class="btn btn-danger btn-sm" title="پاک کردن تمام تاریخچه">
-                <i data-lucide="trash-2"></i>
-                <span>پاک کردن تاریخچه</span>
-            </button>
         </div>
+        <div id="orderStatusContainer" class="portfolio-container"></div>
     </div>
-    <div id="orderStatusContainer" class="portfolio-container"></div>
-</div>
 
     <!-- ===== SECTION: پرتفوی ===== -->
     <div class="section-title">
-        <div class="section-icon">
-            <i data-lucide="briefcase"></i>
-        </div>
+        <div class="section-icon"><i data-lucide="briefcase"></i></div>
         <h2>پرتفوی و دارایی‌ها</h2>
         <div class="section-line"></div>
     </div>
@@ -1580,9 +1739,7 @@
     <div class="card mb-6">
         <div class="card-title-row">
             <h2 class="card-title" style="margin-bottom:0;">
-                <div class="title-icon">
-                    <i data-lucide="wallet"></i>
-                </div>
+                <div class="title-icon"><i data-lucide="wallet"></i></div>
                 پرتفوی صرافی
             </h2>
             <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
@@ -1594,32 +1751,19 @@
                 </button>
             </div>
         </div>
-        <div class="overflow-auto min-w-900">
-            <div class="portfolio-header-row">
-                <div class="portfolio-col symbol-col">نماد / حساب</div>
-                <div class="portfolio-col">تعداد</div>
-                <div class="portfolio-col">ارزش فعلی</div>
-                <div class="portfolio-col">آخرین قیمت</div>
-                <div class="portfolio-col">سود/زیان</div>
-                <div class="portfolio-col">سود/زیان امروز</div>
-                <div class="portfolio-col action-col">افزودن</div>
-            </div>
-            <div id="portfolioContainer" class="portfolio-container"></div>
-        </div>
+        <div id="portfolioContainer" class="portfolio-container"></div>
     </div>
 
     <!-- ===== SECTION: تنظیمات ===== -->
     <div class="section-title">
-        <div class="section-icon">
-            <i data-lucide="zap"></i>
-        </div>
+        <div class="section-icon"><i data-lucide="zap"></i></div>
         <h2>تنظیمات پیشرفته</h2>
         <div class="section-line"></div>
     </div>
 
     <div class="grid-2 mb-6">
         <div class="card flex-wrap">
-            <span class="font-bold" style="display:flex; align-items:center; gap:0.4rem;">
+            <span class="font-bold" style="display:flex; align-items:center; gap:0.4rem; width:100%;">
                 <i data-lucide="target" class="icon-blue" style="width:18px;height:18px;"></i>
                 دقت زمان ارسال (ms)
             </span>
@@ -1631,7 +1775,7 @@
             <span class="text-xs text-gray-400">(کمتر = دقیق‌تر، مصرف CPU بیشتر)</span>
         </div>
         <div class="card flex-wrap">
-            <span class="font-bold" style="display:flex; align-items:center; gap:0.4rem;">
+            <span class="font-bold" style="display:flex; align-items:center; gap:0.4rem; width:100%;">
                 <i data-lucide="fast-forward" class="icon-amber" style="width:18px;height:18px;"></i>
                 زودتر کلیک کردن (offset)
             </span>
@@ -1650,9 +1794,7 @@
 
     <!-- ===== SECTION: مانیتورینگ ===== -->
     <div class="section-title">
-        <div class="section-icon">
-            <i data-lucide="activity"></i>
-        </div>
+        <div class="section-icon"><i data-lucide="activity"></i></div>
         <h2>مانیتورینگ و لاگ‌ها</h2>
         <div class="section-line"></div>
     </div>
@@ -1878,16 +2020,11 @@
     let selectedPortfolioHolding = null;
     let currentPortfolioRows = [];
 
-    // ردیابی آخرین ردیف رندر شده در لاگ/نوتیف، تا فقط موارد «جدید» اضافه شوند
-    // (به‌جای بازسازی کامل DOM در هر پول) — این همان چیزی است که پرش/فلیکر را برطرف می‌کند.
     let lastLogSignature = null;
     let lastNotifSignature = null;
 
-    // ===== Helper: Refresh Lucide Icons =====
     function refreshIcons() {
-        if (window.lucide) {
-            lucide.createIcons();
-        }
+        if (window.lucide) lucide.createIcons();
     }
 
     // ===== Toast System =====
@@ -2102,7 +2239,6 @@
         }, 1000);
     }
 
-    // ساخت HTML یک ردیف لاگ (خالص، بدون درج مستقیم در DOM)
     function buildLogEntryHtml(logItem) {
         let prefix = '';
         if (logItem.account) prefix += `<span class="text-yellow-400">[${escapeHtml(logItem.account)}]</span> `;
@@ -2133,8 +2269,6 @@
                 </div>`;
     }
 
-    // به‌جای بازسازی کامل innerHTML در هر پول (که باعث پرش/فلیکر اسکرول می‌شد)،
-    // فقط ردیف‌های جدید را به انتها اضافه می‌کنیم و اگر چیزی تغییر نکرده اصلاً به DOM دست نمی‌زنیم.
     function updateLogDisplay(logs) {
         const container = document.getElementById('logContainer');
         if (!container || !logs || !logs.length) return;
@@ -2149,11 +2283,10 @@
         }
 
         if (startIdx === 0) {
-            // اولین بارگذاری یا چرخش کامل بافر سرور: فقط اینجا بازسازی کامل انجام می‌شود
             container.innerHTML = recent.map(buildLogEntryHtml).join('');
         } else {
             const newEntries = recent.slice(startIdx);
-            if (!newEntries.length) return; // چیز جدیدی نیست، به DOM دست نمی‌زنیم => بدون پرش
+            if (!newEntries.length) return;
             container.insertAdjacentHTML('beforeend', newEntries.map(buildLogEntryHtml).join(''));
             while (container.children.length > 150) container.removeChild(container.firstChild);
         }
@@ -2211,7 +2344,7 @@
         if (!container) return;
 
         if (!notifs || notifs.length === 0) {
-            if (container.dataset.empty === '1') return; // از قبل خالی نمایش داده شده، دست نمی‌زنیم
+            if (container.dataset.empty === '1') return;
             container.innerHTML = `<div class="empty-state">
                 <div class="empty-state-icon"><i data-lucide="bell-off"></i></div>
                 <div class="empty-state-text">هنوز نوتیفیکیشنی دریافت نشده است</div>
@@ -2283,6 +2416,9 @@
             : portfolioData.filter(h => String(h.account_id) === String(filterVal));
         currentPortfolioRows = filtered;
 
+        // بررسی موبایل بودن
+        const isMobile = window.matchMedia('(max-width: 640px)').matches;
+
         if (!filtered.length) {
             container.innerHTML = `<div class="empty-state">
                 <div class="empty-state-icon"><i data-lucide="pie-chart"></i></div>
@@ -2310,27 +2446,52 @@
             const todayIsLoss = (h.today_profit_percent || '').includes('-') || (h.today_profit_value || '').includes('-');
             const todayClass = todayStr ? (todayIsLoss ? 'text-loss' : 'text-profit') : '';
 
-            html += `
-                <div class="portfolio-item">
-                    <div class="portfolio-col symbol-col">
-                        <span class="state-dot" style="background:${dotColor}; color:${dotColor};" title="${escapeHtml(h.symbol_state || '')}"></span>
-                        <div>
-                            <div style="font-weight:700;">${escapeHtml(h.symbol)}</div>
-                            <div class="text-xs text-gray-400">${escapeHtml(h.account_name || '')}</div>
+            if (isMobile) {
+                html += `
+                    <div class="portfolio-item">
+                        <div class="portfolio-col symbol-col">
+                            <span class="state-dot" style="background:${dotColor}; color:${dotColor};" title="${escapeHtml(h.symbol_state || '')}"></span>
+                            <div>
+                                <div style="font-weight:700;">${escapeHtml(h.symbol)}</div>
+                                <div class="text-xs text-gray-400">${escapeHtml(h.account_name || '')}</div>
+                            </div>
+                        </div>
+                        <div class="portfolio-col" data-label="تعداد">${escapeHtml(h.quantity || '-')}</div>
+                        <div class="portfolio-col font-mono" data-label="ارزش فعلی">${escapeHtml(h.current_value || '-')}</div>
+                        <div class="portfolio-col font-mono ${lastPriceClass}" data-label="آخرین قیمت">${escapeHtml(lastPriceStr)}</div>
+                        <div class="portfolio-col font-mono ${profitClass}" data-label="سود/زیان">${escapeHtml(profitStr || '-')}</div>
+                        <div class="portfolio-col font-mono ${todayClass}" data-label="سود/زیان امروز">${escapeHtml(todayStr || '-')}</div>
+                        <div class="portfolio-col action-col">
+                            <button onclick="openAddTradeModal(${idx})" class="btn btn-success" title="افزودن به معاملات">
+                                <i data-lucide="plus"></i>
+                                <span>افزودن به معاملات</span>
+                            </button>
                         </div>
                     </div>
-                    <div class="portfolio-col">${escapeHtml(h.quantity || '-')}</div>
-                    <div class="portfolio-col font-mono">${escapeHtml(h.current_value || '-')}</div>
-                    <div class="portfolio-col font-mono ${lastPriceClass}">${escapeHtml(lastPriceStr)}</div>
-                    <div class="portfolio-col font-mono ${profitClass}">${escapeHtml(profitStr || '-')}</div>
-                    <div class="portfolio-col font-mono ${todayClass}">${escapeHtml(todayStr || '-')}</div>
-                    <div class="portfolio-col action-col">
-                        <button onclick="openAddTradeModal(${idx})" class="btn btn-success btn-icon" title="افزودن به معاملات">
-                            <i data-lucide="plus"></i>
-                        </button>
+                `;
+            } else {
+                html += `
+                    <div class="portfolio-item">
+                        <div class="portfolio-col symbol-col">
+                            <span class="state-dot" style="background:${dotColor}; color:${dotColor};" title="${escapeHtml(h.symbol_state || '')}"></span>
+                            <div>
+                                <div style="font-weight:700;">${escapeHtml(h.symbol)}</div>
+                                <div class="text-xs text-gray-400">${escapeHtml(h.account_name || '')}</div>
+                            </div>
+                        </div>
+                        <div class="portfolio-col">${escapeHtml(h.quantity || '-')}</div>
+                        <div class="portfolio-col font-mono">${escapeHtml(h.current_value || '-')}</div>
+                        <div class="portfolio-col font-mono ${lastPriceClass}">${escapeHtml(lastPriceStr)}</div>
+                        <div class="portfolio-col font-mono ${profitClass}">${escapeHtml(profitStr || '-')}</div>
+                        <div class="portfolio-col font-mono ${todayClass}">${escapeHtml(todayStr || '-')}</div>
+                        <div class="portfolio-col action-col">
+                            <button onclick="openAddTradeModal(${idx})" class="btn btn-success btn-icon" title="افزودن به معاملات">
+                                <i data-lucide="plus"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         });
         container.innerHTML = html;
         const updatedEl = document.getElementById('portfolioUpdatedAt');
@@ -2606,7 +2767,7 @@
                         <i data-lucide="lock" style="width:14px;height:14px;"></i>
                         ••••••••
                     </div>
-                    <div style="display:flex; gap:0.3rem;">
+                    <div class="trade-actions-group">
                         <button onclick="openEditAccountModal(${acc.id})" class="btn btn-primary btn-icon" title="ویرایش">
                             <i data-lucide="pencil"></i>
                         </button>
@@ -2779,7 +2940,7 @@
                     </div>
                     <div><span class="trade-badge ${badgeClass}"><i data-lucide="${icon}"></i><span>${badgeText}</span></span></div>
                     <div class="text-gray-200 font-mono">${amountFormatted}</div>
-                    <div style="display:flex; align-items:center; gap:0.3rem;">
+                    <div class="trade-time-group">
                         <span class="font-mono text-gray-200" style="min-width:70px; display:flex; align-items:center; gap:0.3rem;">
                             <i data-lucide="clock" style="width:13px;height:13px;color:var(--text-muted);"></i>
                             ${escapeHtml(trade.target_time)}
@@ -2788,7 +2949,7 @@
                         <button onclick="setTimeOffset(${trade.id}, 5)" class="btn btn-primary btn-sm" title="+5 دقیقه">+5</button>
                         <button onclick="setTimeOffset(${trade.id}, 10)" class="btn btn-primary btn-sm" title="+10 دقیقه">+10</button>
                     </div>
-                    <div style="display:flex; gap:0.3rem;">
+                    <div class="trade-actions-group">
                         <button onclick="openEditModal(${trade.id})" class="btn btn-primary btn-icon" title="ویرایش">
                             <i data-lucide="pencil"></i>
                         </button>
@@ -2954,21 +3115,29 @@
     }
 
     async function clearOrderHistory() {
-    if (!confirm('آیا از پاک کردن تمام تاریخچه معاملات ثبت‌شده اطمینان دارید؟ این عمل قابل بازگشت نیست.')) return;
-    try {
-        const res = await fetch('/api/order-history', { method: 'DELETE' });
-        const data = await res.json();
-        if (res.ok) {
-            alert('✅ تاریخچه با موفقیت پاک شد.');
-            // بارگذاری مجدد لیست
-            loadOrderStatus();
-        } else {
-            alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
+        if (!confirm('آیا از پاک کردن تمام تاریخچه معاملات ثبت‌شده اطمینان دارید؟ این عمل قابل بازگشت نیست.')) return;
+        try {
+            const res = await fetch('/api/order-history', { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                alert('✅ تاریخچه با موفقیت پاک شد.');
+                loadOrderStatus();
+            } else {
+                alert('❌ خطا: ' + (data.error || 'مشخص نیست'));
+            }
+        } catch (e) {
+            alert('❌ خطا در ارتباط با سرور');
         }
-    } catch (e) {
-        alert('❌ خطا در ارتباط با سرور');
     }
-}
+
+    // بازسازی پرتفوی هنگام تغییر اندازه صفحه (مثلاً چرخش موبایل)
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (portfolioData.length) renderPortfolio();
+        }, 250);
+    });
 
     window.onload = () => {
         refreshIcons();
