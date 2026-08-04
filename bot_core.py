@@ -1,6 +1,7 @@
 # bot_core.py
 import asyncio
 import re
+import time
 import contextvars
 from datetime import datetime, timedelta
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
@@ -13,6 +14,19 @@ TIMEOUT_SHORT = 5000   # ms
 TIMEOUT_MED = 10000    # ms
 TIMEOUT_LONG = 20000   # ms
 BLOCKED_RESOURCES = re.compile(r"\.(png|jpe?g|webp|svg|gif|ico|ttf|woff2?|eot|mp4|mp3|pdf)(\?|$)", re.I)
+
+# ──────────── Firefox low-latency prefs ────────────
+# Marginal impact vs. server-side/network RTT, but free to enable.
+FAST_FIREFOX_PREFS = {
+    "network.http.pipelining": True,
+    "network.http.pipelining.maxrequests": 10,
+    "network.http.max-connections": 900,
+    "network.http.max-persistent-connections-per-server": 10,
+    "content.notify.interval": 100000,
+    "content.switch.threshold": 100000,
+    "nglayout.initialpaint.delay": 0,
+    "dom.ipc.processCount": 1,
+}
 
 # ──────────── Portfolio Selectors ────────────
 PORTFOLIO_MENU_SELECTOR = "[data-cy='portfolio-menu-icon']"
@@ -318,6 +332,18 @@ async def fill_order_form(page, order_type: str, invest_amount: int | None, quan
     log(f"✅ فرم سفارش پر شد: قیمت={price:,}  تعداد={qty}")
     return price, qty
 
+# ──────────── JS click dispatch (works on Firefox; Playwright CDP does not) ────────────
+_JS_DISPATCH_CLICK = """([sel, fallbackText]) => {
+    let btn = document.querySelector(sel);
+    if (!btn && fallbackText) {
+        btn = Array.from(document.querySelectorAll('button'))
+                    .find(b => b.textContent && b.textContent.includes(fallbackText));
+    }
+    if (!btn) return false;
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    return true;
+}"""
+
 # ──────────── Wait and Submit at Exact Time ────────────
 async def wait_and_submit_at_time(page, order_type: str, target_time_str: str, precision_ms: int = 20, click_offset_ms: int = 0) -> None:
     now = datetime.now()
@@ -328,28 +354,47 @@ async def wait_and_submit_at_time(page, order_type: str, target_time_str: str, p
     target_ts = target_dt.timestamp() - (click_offset_ms / 1000.0)
     log(f"⏰ زمان هدف اصلی: {target_dt.strftime('%H:%M:%S')} | کلیک در: {datetime.fromtimestamp(target_ts).strftime('%H:%M:%S.%f')[:-3]} (با offset {click_offset_ms}ms)")
 
-    remaining = target_ts - datetime.now().timestamp()
-    offset_sec = precision_ms / 1000.0
-    if remaining > 0:
-        sleep_duration = max(0, remaining - offset_sec)
-        if sleep_duration > 0:
-            await asyncio.sleep(sleep_duration)
-        while datetime.now().timestamp() < target_ts:
-            await asyncio.sleep(0.001)
-
-    click_ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    log(f"🎯 کلیک در {click_ts}")
-
+    # --- Pre-locate the submit button and prep the fallback text NOW, so the critical
+    #     final milliseconds don't spend any time doing DOM queries. ---
     if order_type == "خرید":
         submit = page.locator("[data-cy='oms-order-form-submit-button-buy']")
+        selector = "[data-cy=\"oms-order-form-submit-button-buy\"]"
+        fallback_text = None
     else:
         submit = page.locator(
             "[data-cy='oms-order-form-submit-button-sell'], "
             "button:has-text('ارسال فروش'), "
             "button.btn-success:has-text('فروش')"
         ).first
+        selector = "[data-cy=\"oms-order-form-submit-button-sell\"]"
+        fallback_text = "ارسال فروش"
     await submit.wait_for(state="visible", timeout=TIMEOUT_SHORT)
-    await submit.click()
+
+    # --- Timing ---
+    # NOTE on precision: a *true* blocking busy-wait (`while time.time_ns() < target: pass`)
+    # would freeze this coroutine's entire thread. Since run_multiple_trades can run several
+    # trades concurrently as tasks on ONE shared asyncio event loop, a hard busy-wait in one
+    # trade would stall every other trade's click by the same amount during that window —
+    # it would only be safe if you run exactly one trade at a time. The loop below sleeps
+    # normally until close to the deadline, then spins with `asyncio.sleep(0)` (a bare yield,
+    # not a real sleep) for the final stretch — this gets you near-busy-wait precision while
+    # still letting other trades' coroutines get a turn between spins.
+    remaining = target_ts - time.time()
+    fine_window = max(precision_ms, 15) / 1000.0
+    if remaining > fine_window:
+        await asyncio.sleep(remaining - fine_window)
+    while time.time() < target_ts:
+        await asyncio.sleep(0)
+
+    click_ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    log(f"🎯 کلیک در {click_ts}")
+
+    # JS dispatchEvent click — skips Playwright's actionability checks (visibility/scroll/
+    # animation waits) that a normal .click() performs, saving several ms.
+    clicked = await page.evaluate(_JS_DISPATCH_CLICK, [selector, fallback_text])
+    if not clicked:
+        log("⚠️ کلیک JS ناموفق بود، fallback به Playwright click...")
+        await submit.click()
     log("✅ سفارش ارسال شد")
 
 # ──────────── Navigate To Portfolio ────────────
@@ -404,6 +449,16 @@ async def extract_portfolio(page) -> list[dict]:
                 if await v.count():
                     last_price = (await v.inner_text()).strip()
 
+            profit_percent, profit_value = "", ""
+            profit_cell = row.locator("[col-id='profitAmount']")
+            if await profit_cell.count():
+                p = profit_cell.locator("div.text-end").first
+                if await p.count():
+                    profit_percent = (await p.inner_text()).strip()
+                v = profit_cell.locator("div.text-start").first
+                if await v.count():
+                    profit_value = (await v.inner_text()).strip()
+
             today_profit_percent, today_profit_value = "", ""
             today_profit_cell = row.locator("[col-id='todayProfitAmount']")
             if await today_profit_cell.count():
@@ -414,14 +469,33 @@ async def extract_portfolio(page) -> list[dict]:
                 if await v.count():
                     today_profit_value = (await v.inner_text()).strip()
 
+            symbol_state, symbol_state_class = "", ""
+            state_el = row.locator("symbol-state-icon span").first
+            if await state_el.count():
+                title_attr = await state_el.get_attribute("title")
+                class_attr = (await state_el.get_attribute("class")) or ""
+                symbol_state = title_attr or ""
+                if "bg-success" in class_attr:
+                    symbol_state_class = "success"
+                elif "bg-danger" in class_attr:
+                    symbol_state_class = "danger"
+                elif "bg-warning" in class_attr:
+                    symbol_state_class = "warning"
+                else:
+                    symbol_state_class = "muted"
+
             results.append({
                 "symbol": symbol,
                 "quantity": quantity,
                 "current_value": current_value,
                 "last_price": last_price,
                 "last_price_percent": last_price_percent,
+                "profit_percent": profit_percent,
+                "profit_value": profit_value,
                 "today_profit_percent": today_profit_percent,
                 "today_profit_value": today_profit_value,
+                "symbol_state": symbol_state,
+                "symbol_state_class": symbol_state_class,
             })
         except Exception as e:
             log(f"⚠️ خطا در استخراج ردیف پرتفوی #{i}: {e}")
@@ -439,6 +513,7 @@ async def sync_account_portfolio(username: str, password: str, account_name: str
             headless_mode = os.getenv("HEADLESS", "false").lower() == "true"
             browser = await pw.firefox.launch(
                 headless=headless_mode,
+                firefox_user_prefs=FAST_FIREFOX_PREFS,
                 args=[
                     "--start-maximized",
                     "--disable-gpu",
@@ -466,7 +541,10 @@ async def sync_account_portfolio(username: str, password: str, account_name: str
             except Exception as e:
                 log(f"❌ خطا در همگام‌سازی پرتفوی ({account_name}): {e}")
             finally:
-                await browser.close()
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
     finally:
         _log_account_ctx.reset(token_account)
     return holdings
@@ -507,6 +585,7 @@ async def run_single_trade(
             headless_mode = os.getenv("HEADLESS", "false").lower() == "true"
             browser = await pw.firefox.launch(
                 headless=headless_mode,
+                firefox_user_prefs=FAST_FIREFOX_PREFS,
                 args=[
                     "--start-maximized",
                     "--disable-gpu",
@@ -541,6 +620,11 @@ async def run_single_trade(
                 log(f"🛑 معامله {trade['symbol']} متوقف شد. بستن مرورگر...")
             except Exception as e:
                 log(f"❌ خطا در معامله {trade['symbol']}: {e}")
+            finally:
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
     finally:
         # بازگرداندن context به حالت قبل (پاک کردن)
         _log_account_ctx.reset(token_account)

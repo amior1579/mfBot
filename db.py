@@ -61,6 +61,11 @@ class DatabaseManager:
                     updated_at TIMESTAMP DEFAULT NOW()
                 );
             """)
+            # ستون‌های جدید (سود/زیان کلی سهم و وضعیت نماد) - برای دیتابیس‌های موجود هم اضافه می‌شود
+            cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS profit_percent VARCHAR(20);")
+            cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS profit_value VARCHAR(50);")
+            cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS symbol_state VARCHAR(50);")
+            cur.execute("ALTER TABLE portfolio_holdings ADD COLUMN IF NOT EXISTS symbol_state_class VARCHAR(20);")
             cur.execute("""
                 INSERT INTO settings (key, value) VALUES 
                 ('precision_ms', '20'),
@@ -168,8 +173,10 @@ class DatabaseManager:
                 cur.execute(
                     """INSERT INTO portfolio_holdings
                        (account_id, symbol, quantity, current_value, last_price,
-                        last_price_percent, today_profit_percent, today_profit_value)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""",
+                        last_price_percent, profit_percent, profit_value,
+                        today_profit_percent, today_profit_value,
+                        symbol_state, symbol_state_class)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
                     (
                         account_id,
                         h.get("symbol"),
@@ -177,8 +184,12 @@ class DatabaseManager:
                         h.get("current_value"),
                         h.get("last_price"),
                         h.get("last_price_percent"),
+                        h.get("profit_percent"),
+                        h.get("profit_value"),
                         h.get("today_profit_percent"),
                         h.get("today_profit_value"),
+                        h.get("symbol_state"),
+                        h.get("symbol_state_class"),
                     )
                 )
             conn.commit()

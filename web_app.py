@@ -183,13 +183,13 @@ def offset():
         val = db.get_setting("click_offset_ms", "0")
         return jsonify({"offset_ms": int(val)})
 
-# ===================== اجرا و توقف ربات =====================
+# ===================== اجرا / توقف / ریست ربات =====================
 @app.route("/api/run", methods=["POST"])
 def run_bot():
     global bot_running, current_stop_event
     with bot_lock:
         if bot_running:
-            return jsonify({"error": "ربات در حال اجراست. ابتدا آن را متوقف کنید."}), 400
+            return jsonify({"error": "ربات در حال اجراست. ابتدا آن را ریست کنید."}), 400
 
         accounts = db.get_accounts()
         trades = db.get_trades()
@@ -242,6 +242,25 @@ def stop_bot():
         bot_running = False
         return jsonify({"status": "درخواست توقف ربات ارسال شد."})
 
+@app.route("/api/reset", methods=["POST"])
+def reset_bot():
+    """ربات را به‌طور کامل ریست می‌کند: معاملات در حال اجرا را متوقف، مرورگرها را می‌بندد و لاگ‌ها/نوتیف‌ها را پاک می‌کند"""
+    global bot_running, current_stop_event
+    with bot_lock:
+        if current_stop_event:
+            current_stop_event.set()
+        bot_running = False
+        current_stop_event = None
+
+    log_buffer.clear()
+    try:
+        with open("notifications.log", "w", encoding="utf-8") as f:
+            pass
+    except Exception:
+        pass
+
+    return jsonify({"status": "ربات به‌طور کامل ریست شد"})
+
 # ===================== پرتفوی =====================
 @app.route("/api/portfolio", methods=["GET"])
 def get_portfolio():
@@ -258,7 +277,7 @@ def sync_portfolio():
         if portfolio_syncing:
             return jsonify({"error": "همگام‌سازی پرتفوی از قبل در حال اجراست"}), 400
         if bot_running:
-            return jsonify({"error": "ربات در حال اجرای معاملات است، ابتدا آن را متوقف کنید"}), 400
+            return jsonify({"error": "ربات در حال اجرای معاملات است، ابتدا آن را ریست کنید"}), 400
         accounts = db.get_accounts()
         if not accounts:
             return jsonify({"error": "حداقل یک حساب تعریف کنید"}), 400
